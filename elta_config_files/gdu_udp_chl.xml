@@ -1,0 +1,12 @@
+<COMM>
+  <COMM_CONFIGURATION>
+    <CommType>UDPUnicast</CommType>
+    <IpAddress>127.0.0.1</IpAddress>   <!-- TDP -->
+    <Port>23014</Port>
+    <MaxBuffSize>1000000</MaxBuffSize>
+    <MaxClients>1</MaxClients>
+    <RecvInterval>10</RecvInterval>
+    <DefaultDestPort>32014</DefaultDestPort>
+    <DefaultDestIp>127.0.0.1</DefaultDestIp>   <!-- GDU -->
+  </COMM_CONFIGURATION>
+</COMM>

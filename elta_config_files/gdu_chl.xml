@@ -1,0 +1,13 @@
+<COMM>
+  <COMM_CONFIGURATION>
+    <CommType>TcpServer</CommType>
+    <IpAddress>127.0.0.1</IpAddress>   <!-- GDU -->
+    <Port>23004</Port>
+    <MaxBuffSize>1000000</MaxBuffSize>
+    <MaxClients>1</MaxClients>
+    <RecvInterval>5</RecvInterval>
+    <RecvTaskPriority>49</RecvTaskPriority>
+    <DefaultDestPort>32004</DefaultDestPort>
+    <DefaultDestIp>127.0.0.1</DefaultDestIp>   <!-- TDP -->
+  </COMM_CONFIGURATION>
+</COMM>
