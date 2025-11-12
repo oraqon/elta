@@ -1,0 +1,4096 @@
+UNCLASSIFIED
+
+Interface Design Description
+Between the ELM-2135 Radar
+and
+C2
+Prepared by
+Elta Systems Ltd.
+RESTRICTION ON USE, DUPLICATION, OR
+DISCLOSURE OF PROPRIETARY INFORMATION
+This document contains proprietary information which is
+the sole property of Elta Systems Ltd. The document is
+submitted to the recipient for his use only. By receiving this
+document the recipient undertakes not to duplicate the
+document or to disclose in part of, or the whole of, any of
+the information contained herein to any third party without
+receiving before hand, written permission from the
+submitting company.
+
+DOC. NO. 6950V704-001
+
+REV. –
+
+PAGE 1 OF 40 PAGES
+
+ELTA Systems LTD. - P.O.B. 330, ASHDOD 77102, ISRAEL - TEL. 972-8-8572410 - FAX. 972-8-8561872
+
+This document contains proprietary information of ELTA Systems Ltd.
+Copyright 2025 ELTA Systems Ltd.
+
+UNCLASSIFIED
+
+VER.
+001
+002
+
+REV
+.
+-
+
+Record Of Changes And Revisions
+Original document (if created from other document):
+ECR No.
+DESCRIPTION
+DATE
+
+APPROVER
+
+Initial release
+Update Singel Target Extended Data size
+Update RCS to float
+Update Target status enum
+Add general remarks
+Target source value move to appendix
+A
+Note about communication channel
+setting
+
+-
+
+003
+
+N.Ohayon
+N.Ohayon
+
+N.Ohayon
+
+004
+
+First Revision Approvers
+
+Author:
+
+Conf. Mgr.:
+
+Q.A.:
+
+R.Bet Yakov
+
+Checker:
+
+S.Boltanski
+
+Final Approver:
+
+N.Ohayon.
+
+Other (Specify Role):
+
+DOC. NO. 6950V704-001
+
+REV. –
+This document contains proprietary information of ELTA Systems Ltd.
+Copyright 2025 ELTA Systems Ltd.
+
+PAGE 2 OF 40 PAGES
+
+Table of Contents
+SCOPE ..................................................................................................................................................................... 5
+1.1
+1.2
+1.3
+
+IDENTIFICATION .................................................................................................................................................... 5
+SYSTEM OVERVIEW .............................................................................................................................................. 5
+DOCUMENT OVERVIEW ......................................................................................................................................... 6
+
+REFERENCED DOCUMENTS ............................................................................................................................ 7
+2.1 GOVERNMENT DOCUMENTS .................................................................................................................................. 7
+2.1.1
+Specifications, Standards and handbooks ................................................................................................... 7
+2.1.2
+Other Government Documents, Drawings and Publications ...................................................................... 7
+2.2 NON-GOVERNMENT DOCUMENTS ......................................................................................................................... 7
+INTERFACE DESIGN ........................................................................................................................................... 8
+3.1 INTERFACE IDENTIFICATION AND DIAGRAMS........................................................................................................ 8
+3.1.1
+Endianness .................................................................................................................................................. 8
+3.2 INTERFACE MESSAGE HEADER STRUCTURE .......................................................................................................... 8
+3.3 C2-RC INTERFACE .............................................................................................................................................. 10
+3.3.1
+Interface Priority ...................................................................................................................................... 10
+3.3.2
+Interface Type ........................................................................................................................................... 10
+3.3.3
+Data Elements ........................................................................................................................................... 10
+3.3.4
+Data Element Assemblies .......................................................................................................................... 10
+3.3.5
+Message Descriptions ............................................................................................................................... 10
+3.3.6
+Communication Methods (Physical Layer) ............................................................................................... 11
+3.4 RC-C2 INTERFACE .............................................................................................................................................. 12
+3.4.1
+Interface Priority ...................................................................................................................................... 12
+3.4.2
+Interface Type ........................................................................................................................................... 12
+3.4.3
+Data Elements ........................................................................................................................................... 12
+3.4.4
+Data Element Assemblies .......................................................................................................................... 12
+3.4.5
+Message Descriptions ............................................................................................................................... 13
+3.4.6
+Communication Methods (Physical Layer) ............................................................................................... 13
+3.4.7
+Data Types ................................................................................................................................................ 13
+NOTES ................................................................................................................................................................... 14
+4.1
+
+LIST OF ACRONYMS ............................................................................................................................................ 14
+
+MESSAGE DATA DEFINITION ........................................................................................................................ 16
+5.1 C2 TO RC MESSAGES ......................................................................................................................................... 17
+5.1.1
+System Control .......................................................................................................................................... 17
+5.1.2
+System Motion ........................................................................................................................................... 18
+5.1.3
+Maintenance Request ................................................................................................................................ 20
+5.1.4
+BIT Request ............................................................................................................................................... 21
+5.1.5
+Resource Request ...................................................................................................................................... 22
+5.1.6
+Keep Alive ................................................................................................................................................. 23
+5.1.7
+Set Sensor Position ................................................................................................................................... 24
+5.1.8
+Get Sensor Position .................................................................................................................................. 25
+5.2 RC TO C2 MESSAGES .......................................................................................................................................... 26
+5.2.1
+System Status............................................................................................................................................. 26
+5.2.2
+Target Data ............................................................................................................................................... 28
+5.2.3
+Bit Status Data .......................................................................................................................................... 35
+5.2.4
+Maintenance Data..................................................................................................................................... 36
+5.2.5
+Acknowledge ............................................................................................................................................. 37
+5.2.6
+Sensor Position ......................................................................................................................................... 38
+MESSAGE SEQUENCING ................................................................................................................................. 39
+6.1
+6.2
+6.3
+6.4
+
+INITSTATE ........................................................................................................................................................... 39
+STANDBY STATE ................................................................................................................................................. 39
+OPERATESTATE................................................................................................................................................... 40
+MODE TRANSITION ROLES ................................................................................................................................... 40
+
+DOC. NO. 6950V704-001
+
+REV. –
+This document contains proprietary information of ELTA Systems Ltd.
+Copyright 2025 ELTA Systems Ltd.
+
+PAGE 3 OF 40 PAGES
+
+List of Figures
+FIGURE 1: ELM2135 RADAR HW AND SW CONFIGURATION ............................................................................................. 5
+FIGURE 2: INTERFACE DIAGRAM ......................................................................................................................................... 8
+FIGURE 3: C2_RC MESSAGE BLOCKS ............................................................................................................................... 10
+FIGURE 4: RC_C2 MESSAGE BLOCKS ............................................................................................................................... 12
+
+List of Tables
+TABLE 1: PROJECT REFERENCE DOCUMENTS ...................................................................................................................... 7
+TABLE 2: INTERFACE IDENTIFICATION ................................................................................................................................ 8
+TABLE 3: MESSAGE HEADER ............................................................................................................................................... 9
+TABLE 4: C2_RC MESSAGES ............................................................................................................................................. 11
+TABLE 5: RC_C2 MESSAGES ............................................................................................................................................. 13
+
+DOC. NO. 6950V704-001
+
+REV. –
+This document contains proprietary information of ELTA Systems Ltd.
+Copyright 2025 ELTA Systems Ltd.
+
+PAGE 4 OF 40 PAGES
+
+SCOPE
+1.1
+
+Identification
+This Interface Design Description (IDD) establishes the interface definition between the
+Command and Control (C2) and the Radar Computer (RC). The following interfaces are
+defined in this document.
+• Interface Name
+• C2-RC
+• RC-C2
+
+1.2
+
+Description
+Supports the interface between the C2 and the RC.
+Supports the interface between the RC and the C2.
+
+System Overview
+
+The ELM-2135 is an all-weather modular Multi Mission RADAR System, the system designed to
+perform air situation awareness missions to tactical platforms. The TDP application use for Interface
+management and provide the ELM-2135 ICD over TCP\UDP via Ethernet communication.
+
+C2
+
+C2
+Channel
+TCP +
+UDP
+
+Radar 1
+
+RC
+C
+TCP
+
+TDP
+(SW)
+
+Radar 2
+Radar 3
+
+Tracker
+(SW)
+
+Radar 4
+
+Figure 1: ELM2135 Radar HW and SW Configuration
+
+DOC. NO. 6950V704-001
+
+REV. –
+This document contains proprietary information of ELTA Systems Ltd.
+Copyright 2025 ELTA Systems Ltd.
+
+PAGE 5 OF 40 PAGES
+
+1.3
+
+Document Overview
+This document specifies the interfaces between the ELM-2135 Radar system and External
+system. This document has been written in accordance with MIL-STD-498 Interface Design
+Description (IDD) (Ref. Doc. [MS-IDD]).
+The contents of this document are as follows:
+Section 1
+Section 2
+Section 3
+Section 4
+
+Section 5
+
+DOC. NO. 6950V704-001
+
+Defines the scope, identifies the interface, and provides both a system
+and document overview.
+Lists all Referenced Documents in this IDD.
+Is divided into paragraphs that describe the interface characteristics.
+Contains two traceability tables to/from each interfacing entity covered
+by this IDD to the system or CSCI requirements addressed by the
+entity's interface design.
+Contains an alphabetical listing of all acronyms, abbreviations, and
+their meanings as used in this document and a list of terms and
+definitions needed to understand this document.
+
+REV. –
+This document contains proprietary information of ELTA Systems Ltd.
+Copyright 2025 ELTA Systems Ltd.
+
+PAGE 6 OF 40 PAGES
+
+REFERENCED DOCUMENTS
+This section presents only those documents referenced in this document.
+Documents in the following table maybe referenced throughout this document using the
+notation Ref. Doc. [Ref Id]. The applicable revision and date of the documents are of the last
+edition published as of the date of this document, unless otherwise stated.
+
+2.1
+
+Government Documents
+
+2.1.1
+
+Specifications, Standards and handbooks
+Ref. Id
+[GD-1]
+[MS-IDD]
+
+Identification (P/N)
+AMSC No. N7069
+DID DI-IPSC-81436
+
+Title
+MIL-STD-498 Software Development and Documentation
+MIL-STD-498 DATA ITEM DESCRIPTION for Interface Design
+Description (IDD)
+
+Table 1: Project Reference Documents
+
+2.1.2
+
+Other Government Documents, Drawings and Publications
+None
+
+2.2
+
+Non-Government Documents
+None
+
+DOC. NO. 6950V704-001
+
+REV. –
+This document contains proprietary information of ELTA Systems Ltd.
+Copyright 2025 ELTA Systems Ltd.
+
+PAGE 7 OF 40 PAGES
+
+Interface Design
+3.1
+
+Interface Identification and Diagrams
+The following diagram depicts the interface between the different components.
+RC
+
+C2
+
+TDP
+(SW)
+
+MPR_TRK
+(SW)
+
+Figure 2: Interface Diagram
+
+• Interface ID
+• C2-RC
+• RC-C2
+
+CSCI
+TDP
+TDP
+
+Interface Type
+Ethernet (TCP+UDP)
+Ethernet (TCP+UDP)
+
+Table 2: Interface Identification
+TCP client/server.
+RC – TCP Server The port is configurable .
+C2 – TCP Client .
+UDP
+The Send port from RC is configurable.
+The Recive port at RC is configurable.
+RC IP Address is configurable
+The TCP channel type can be configured as TCP / UDP. The type in this document is only
+recommended.
+
+3.1.1
+
+Endianness
+
+The byte order of this ICD is little-endian.
+
+3.2
+
+Interface Message Header Structure
+
+The Message Header structure is indetical for C2-RC and RC-C2 interfaces
+
+DOC. NO. 6950V704-001
+
+REV. –
+This document contains proprietary information of ELTA Systems Ltd.
+Copyright 2025 ELTA Systems Ltd.
+
+PAGE 8 OF 40 PAGES
+
+SIGNAL NAME
+
+SIZE
+(Bytes)
+
+Message Id
+Message Length
+Message Time Tag
+Message Sequence Number
+Message source_id
+
+4
+Message ID - code
+4
+Message Length include header + body in bytes
+4
+Message time Tag (MS from midnight)
+4
+Message Sequence Number
+4
+Table 3: Message Header
+
+DOC. NO. 6950V704-001
+
+DESCRIPTION
+
+REV. –
+This document contains proprietary information of ELTA Systems Ltd.
+Copyright 2025 ELTA Systems Ltd.
+
+PAGE 9 OF 40 PAGES
+
+3.3
+
+C2-RC Interface
+
+The purpose of the C2 – RC is to support the interface between the C2 Unit and the RC Unit. Using
+this channel the C2 send the defined messages at message descriptions.
+System Control
+System Motion
+C2
+
+Maintenance Request
+Bit request
+Resource Request
+Keep Alive
+Set Sensor position
+Get Sensor position
+
+RC
+
+Figure 3: C2_RC Message Blocks
+
+3.3.1
+
+Interface Priority
+
+Priorities for this interface are as follows:
+•
+
+Interface Priority: High
+
+3.3.2
+
+Interface Type
+
+The type of interface is TCP client/server and UDP.
+
+3.3.3
+
+Data Elements
+
+Refer to the peregraph 6 .
+
+3.3.4
+3.3.4.1
+
+Data Element Assemblies
+Block Alignment
+
+Each message is formatted in a protocol.
+Message is composed of:
+• Header
+• Body
+
+3.3.5
+
+Message Descriptions
+Messages that are transferred from the C2 to the RC via the C2_RC message block are as
+follows:
+
+DOC. NO. 6950V704-001
+
+REV. –
+This document contains proprietary information of ELTA Systems Ltd.
+Copyright 2025 ELTA Systems Ltd.
+
+PAGE 10 OF 40 PAGES
+
+Source
+
+Target
+
+Message ID
+
+Message Name
+
+Protocol
+
+C2
+
+RC
+
+0xCEF00401
+
+System Control
+
+TCP
+
+C2
+
+RC
+
+0xCEF00412
+
+System Motion
+
+TCP
+
+C2
+C2
+C2
+C2
+C2
+C2
+
+RC
+RC
+RC
+RC
+RC
+RC
+
+0xCEF0040C
+0xCEF0040A
+0xCEF0040D
+0xCEF00400
+0xCEF00418
+0xCEF00419
+
+Maintenance Request
+Bit request
+Resource Request
+Keep Alive
+set Sensor position
+get sensor position
+
+TCP
+TCP
+TCP
+UDP
+TCP
+TCP
+
+Table 4: C2_RC Messages
+
+3.3.6
+3.3.6.1
+
+Communication Methods (Physical Layer)
+Interconnections
+
+Ethernet
+3.3.6.2
+
+Other Characteristics
+
+N/A
+
+DOC. NO. 6950V704-001
+
+REV. –
+This document contains proprietary information of ELTA Systems Ltd.
+Copyright 2025 ELTA Systems Ltd.
+
+PAGE 11 OF 40 PAGES
+
+3.4
+
+RC-C2 Interface
+
+The purpose of the RC – C2 is to support the interface between the RC Unit and the C2 Unit. Using
+this channel the RC send the defined messages at message descriptions.
+System Status
+Targets Data
+Single Targets Data
+Single Targets Data Extended
+Bit Status Data
+Maintenance data
+
+RC
+
+C2
+
+Acknowledge
+Sensor position
+
+Figure 4: RC_C2 Message Blocks
+
+3.4.1
+
+Interface Priority
+
+Priorities for this interface are as follows:
+•
+
+Interface Priority: High
+
+3.4.2
+
+Interface Type
+
+The type of interface is TCP client/server and UDP.
+
+3.4.3
+
+Data Elements
+
+Refer to the peregraph 6 .
+
+3.4.4
+3.4.4.1
+
+Data Element Assemblies
+Block Alignment
+
+Each message is formatted in a protocol.
+Message is composed of:
+• Header
+• Body
+
+DOC. NO. 6950V704-001
+
+REV. –
+This document contains proprietary information of ELTA Systems Ltd.
+Copyright 2025 ELTA Systems Ltd.
+
+PAGE 12 OF 40 PAGES
+
+3.4.5
+
+Message Descriptions
+Messages that are transferred from the RC to the C2 via the RC_C2 message block are as
+follows:
+Source
+
+Target
+
+Message ID
+
+Message Name
+
+Protocol
+
+RC
+
+C2
+
+0xCEF00402
+
+System Status
+
+UDP
+
+RC
+
+C2
+
+0xCEF00403
+
+Target Report
+
+TCP
+
+RC
+RC
+RC
+RC
+RC
+RC
+
+C2
+C2
+C2
+C2
+C2
+C2
+
+0xCEF00404
+0xCEF00414
+0xCEF00406
+0xCEF00407
+0xCEF00405
+0xCEF0041A
+
+Single Target Report
+Single Targets Data extended
+Bit Status Data
+Maintenance data
+Acknowledge
+Sensor position
+
+TCP
+TCP
+UDP
+TCP
+TCP
+TCP
+
+Table 5: RC_C2 Messages
+
+3.4.6
+3.4.6.1
+
+Communication Methods (Physical Layer)
+Interconnections
+
+Ethernet
+3.4.6.2
+
+Other Characteristics
+
+N/A
+
+3.4.7
+
+Data Types
+Abbrev.
+UL
+L
+US
+S
+D
+F
+C
+UC
+I_64
+ENUM
+B
+
+DOC. NO. 6950V704-001
+
+Size
+32 bits
+32 bits
+16 bits
+16 bits
+64 bits
+32 bits
+8 bits
+8 bits
+64 bits
+32 bits
+8
+
+Description
+Unsigned Long
+Long
+Unsigned Short
+Short
+Double
+Float
+Char
+Char
+Int64
+Enum
+Bool
+
+REV. –
+This document contains proprietary information of ELTA Systems Ltd.
+Copyright 2025 ELTA Systems Ltd.
+
+PAGE 13 OF 40 PAGES
+
+Notes
+4.1
+
+List of Acronyms
+The following table defines the Acronyms and Abbreviations used in this document.
+
+Acronym/Abbreviation Description
+AS
+
+Air Surveillance
+
+BIT
+
+Built in Test
+
+C2
+
+Command & Control
+
+CSCI
+
+Computer Software Configuration Item
+
+CU
+
+Control Unit
+
+EXTAPP
+
+External Application (i.e. C2)
+
+GDU
+
+General Display Unit
+
+HMI
+
+Human Machine Interface
+
+HPT
+
+High Priority Target
+
+H/W
+
+Hardware
+
+INS
+
+Inertial System
+
+IO
+
+Input/output
+
+LRU
+MFL
+MMI
+
+Line Replaceable Unit
+Malfunction List
+Man, Machine Interface
+
+PC
+
+Personal Computer
+
+RC
+RDP
+
+Radar Computer
+
+RSP
+
+Radar Signal Processor
+
+SMC
+
+Sub Mode Change
+
+SNR
+
+Signal Noise Ratio
+
+SSDD
+
+System/Subsystem Design Description
+
+SSS
+
+System/Subsystem Specification
+
+SRS
+
+Software Requirements Specification
+
+TWS
+
+Track While Scan (Tracker)
+
+MRS
+
+Module Radar System
+
+FR
+
+Front Right Antenna – Anttenna 1
+
+BR
+
+Back Right Antenna – Anttenna 2
+
+BL
+
+Back Left Antenna – Anttenna 3
+
+FL
+
+Front Left Antenna – Anttenna 4
+
+DOC. NO. 6950V704-001
+
+Radar Data Processor
+
+REV. –
+This document contains proprietary information of ELTA Systems Ltd.
+Copyright 2025 ELTA Systems Ltd.
+
+PAGE 14 OF 40 PAGES
+
+Acronym/Abbreviation Description
+HFL
+
+DOC. NO. 6950V704-001
+
+Hostile Fire Locator
+
+REV. –
+This document contains proprietary information of ELTA Systems Ltd.
+Copyright 2025 ELTA Systems Ltd.
+
+PAGE 15 OF 40 PAGES
+
+Message Data Definition
+This defines the data definition for each message described in section 3 of this document.
+
+DOC. NO. 6950V704-001
+
+REV. –
+This document contains proprietary information of ELTA Systems Ltd.
+Copyright 2025 ELTA Systems Ltd.
+
+PAGE 16 OF 40 PAGES
+
+5.1
+
+C2 to RC Messages
+
+5.1.1
+
+System Control
+
+Message Name
+Message Code/Id
+Message Size
+In/Out Type
+Rate
+Timing Constraints
+Acknowledge Required
+Validation
+Message Ability
+Description
+Message Words
+
+No.
+
+•
+
+Field Name
+
+:
+:
+:
+:
+:
+:
+:
+:
+:
+:
+:
+
+System Control
+0xCEF00401
+60 Bytes
+In
+Upon request
+
+None
+This message sends control command to the RC
+See table below.
+
+1.
+2.
+
+Message Header
+RDR_STATE
+
+Size
+(Bytes)
+20
+4
+
+Type
+
+3.
+4.
+
+Mission Category
+HFL_Sensor1_control
+
+4
+1
+
+ENUM
+UC
+
+5.
+
+HFL_Sensor2_control
+
+1
+
+UC
+
+6.
+
+HFL_Sensor3_control
+
+1
+
+UC
+
+7.
+
+HFL_Sensor4_control
+
+1
+
+UC
+
+8.
+
+Radar1_control
+
+1
+
+UC
+
+Not relevant
+
+9.
+
+Radar2_control
+
+1
+
+UC
+
+Not relevant
+
+10.
+
+Radar3_control
+
+1
+
+UC
+
+Not relevant
+
+11.
+
+Radar4_control
+
+1
+
+UC
+
+Not relevant
+
+12.
+13.
+
+Freq Index
+Spare[0:4]
+
+4
+4*5
+
+UL
+UL
+
+ENUM
+
+Description
+
+Encoding
+
+See section 3.2
+2 – STANDBY
+3 – MAINTENANCE
+4 – OPERATE
+UP TO 5 MISSION
+
+0-4
+0-Enable
+1-Disable
+0-Enable
+1-Disable
+0-Enable
+1-Disable
+0-Enable
+1-Disable
+0-Enable
+1-Disable
+0-Enable
+1-Disable
+0-Enable
+1-Disable
+0-Enable
+1-Disable
+1-10
+
+The missions Category and paramtesrs will be supply outside of this ICD depeding on the
+configuration of the system .
+
+DOC. NO. 6950V704-001
+
+REV. –
+This document contains proprietary information of ELTA Systems Ltd.
+Copyright 2025 ELTA Systems Ltd.
+
+PAGE 17 OF 40 PAGES
+
+5.1.2
+
+System Motion
+
+Message Name
+Message Code/Id
+Message Size
+In/Out Type
+Rate
+Timing Constraints
+Acknowledge
+Required
+Validation
+Message Ability
+Description
+
+:
+:
+:
+:
+:
+:
+:
+
+System Motion
+0xCEF00412
+
+192 Bytes
+In
+50 [Hz]
+
+: None
+:
+: The system Motion message including location and inertial data
+including velocities and acceleration of the system. The C2
+system need to provide the message data in recommended rate of
+at least 50 [Hz] from the platform including all describe data.
+In case that the system is static the Motion message should send
+ones after powerup.
+The data is relative to a point in the platform. Zero point on DP
+plane:
+Reference Plane
+Symbol
+Planes
+Datum Plane
+DP
+XY
+Longitudinal Plane
+LP
+XZ
+Traverse Plane
+TP
+YZ
+The "LOCATION" represents the platform place with respect to
+GEO coordinates.
+The "TILTING ANGLES" represent the platform inclination with
+respect to the LGC coordinates. The "TILTING ANGLES" is the
+rotation of the Platform coordinate system around each of its axes,
+Px, Py, Pz. (NED system)
+Rotation clockwise when looking outwards
+•
+
+Around Px axis→ +Proll.
+
+•
+
+Around Py axis→ +Ppitch.
+
+•
+
+Around Pz axis→ +Pyaw.
+
+Px
+
+
+
+Px
+
+Px’
+
+Proll (rear view)
+Py
+
+Px
+
+ᶿ
+
+
+
+Py
+
+Px’
+Py
+
+Py’
+
+Pz’
+
+Pz
+
+Pz’
+
+Ppitch (side view)
+Pz
+
+Pyaw (top view)
+Pz
+
+Py’
+
+The positive direction of the platforms axes, when looking from
+DP outwards is:
+
+DOC. NO. 6950V704-001
+
+•
+
+Px→ forward.
+
+•
+
+Py→ right.
+REV. –
+
+This document contains proprietary information of ELTA Systems Ltd.
+Copyright 2025 ELTA Systems Ltd.
+
+PAGE 18 OF 40 PAGES
+
+•
+
+Pz→ down.
+
+Py
+
+Px
+Pz
+
+Message Words
+
+No.
+
+: See table below.
+
+Field Name
+
+1.
+2.
+3.
+4.
+
+Message Header
+timeOfDataGeneration
+currentPosition_altitude
+currentPosition_latitude
+
+Size
+(Bytes)
+20
+8
+8
+8
+
+5.
+6.
+
+currentPosition_longitude
+sensorAttitude_pitch
+
+7.
+
+Type
+
+Description
+
+Encoding
+
+D
+D
+
+See section 3.2
+milliseconds
+altitude
+latitude
+
+8
+8
+
+D
+D
+
+longitude
+pitch
+
+sensorAttitude_roll
+
+8
+
+D
+
+roll
+
+8.
+9.
+
+sensorAttitude_yaw
+PlatformHeading
+
+8
+8
+
+D
+D
+
+yaw
+Current platform heading
+
+10.
+
+Spare1
+
+8
+
+D
+
+spare
+
+11.
+
+Spare2
+
+8
+
+D
+
+spare
+
+12.
+
+Spare3
+
+8
+
+D
+
+spare
+
+13.
+
+northVelocity
+
+8
+
+D
+
+North velocity Speed
+
+m/sec
+
+14.
+
+eastVelocity
+
+8
+
+D
+
+East velocity Speed
+
+m/sec
+
+15.
+
+downVelocity
+
+8
+
+D
+
+Down velocity Speed
+
+m/sec
+
+16.
+
+angularVelocity_X
+
+8
+
+D
+
+Angular velocity forward
+
+Rad/sec
+
+17.
+
+angularVelocity_Y
+
+8
+
+D
+
+Angular velocity right
+
+Rad/sec
+
+18.
+
+angularVelocity_Z
+
+8
+
+D
+
+Angular velocity down
+
+Rad/sec
+
+19.
+
+Acceleration_X
+
+8
+
+D
+
+m/sec².
+
+20.
+
+Acceleration_Y
+
+8
+
+D
+
+21.
+
+Acceleration_Z
+
+8
+
+D
+
+22.
+
+Spare[0:2]
+
+3*4
+
+UL
+
+Linear platform frame acceleration
+forward. X component (x axis)
+Linear platform frame acceleration
+right. Y component (x axis)
+Linear platform frame acceleration
+right. Z component (x axis)
+spare
+
+DOC. NO. 6950V704-001
+
+I_64
+
+REV. –
+This document contains proprietary information of ELTA Systems Ltd.
+Copyright 2025 ELTA Systems Ltd.
+
+milliseconds
+meters
+Radians [-pi/2 :
+pi/2]
+Radians [-pi : pi]
+Radians [-pi/2 :
+pi/2]
+Radians [-pi/2 :
+pi/2]
+Radians [-pi : pi]
+
+m/sec².
+m/sec².
+
+PAGE 19 OF 40 PAGES
+
+5.1.3
+
+Maintenance Request
+
+Message Name
+Message Code/Id
+Message Size
+In/Out Type
+Rate
+Timing Constraints
+Acknowledge Required
+Validation
+Message Ability
+Description
+
+Message Words
+
+No.
+1.
+
+Field Name
+
+Message Header
+
+DOC. NO. 6950V704-001
+
+:
+:
+:
+:
+:
+:
+:
+:
+:
+:
+
+Maintenance Request
+0xCEF0040C
+
+20 Bytes
+In
+Upon user request
+
+None
+
+The message is a request for system maintenance and version
+data. The system replies with maintenance data message. The
+message applicable on maintenance and standby state
+: See table below
+
+Size
+(Bytes)
+20
+
+Type
+
+Description
+
+Encoding
+
+See section 3.2
+
+REV. –
+This document contains proprietary information of ELTA Systems Ltd.
+Copyright 2025 ELTA Systems Ltd.
+
+PAGE 20 OF 40 PAGES
+
+5.1.4
+
+BIT Request
+
+Message Name
+Message Code/Id
+Message Size
+In/Out Type
+Rate
+Timing Constraints
+Acknowledge Required
+Validation
+Message Ability
+Description
+
+Message Words
+
+No.
+1.
+
+Field Name
+
+Message Header
+
+DOC. NO. 6950V704-001
+
+:
+:
+:
+:
+:
+:
+:
+:
+:
+:
+
+BIT Request
+0xCEF0040A
+
+20 Bytes
+In
+Upon user request
+
+None
+
+The message is a request for system-initiated Build in Test
+(IBIT) , the system will respond with BIT Status Data Message.
+The message is applicable only in maintenance state
+: See table below
+
+Size
+(Bytes)
+20
+
+Type
+
+Description
+
+Encoding
+
+See section 3.2
+
+REV. –
+This document contains proprietary information of ELTA Systems Ltd.
+Copyright 2025 ELTA Systems Ltd.
+
+PAGE 21 OF 40 PAGES
+
+5.1.5
+
+Resource Request
+
+Message Name
+Message Code/Id
+Message Size
+In/Out Type
+Rate
+Timing Constraints
+Acknowledge Required
+Validation
+Message Ability
+Description
+
+Message Words
+
+No.
+
+Field Name
+
+:
+:
+:
+:
+:
+:
+:
+:
+:
+:
+
+Resource Request
+0xCEF0040D
+
+96 Bytes
+In
+Upon user request
+
+None
+
+The message allows to C2 to request resources from the radar
+system to increasing tracking rate on chosen Target.
+the system replies to the request with Acknowledge message.
+: See table below.
+
+1.
+2.
+3.
+4.
+
+Message Header
+requestTime
+targetID
+requestType
+
+Size
+(Bytes)
+20
+8
+4
+4
+
+Type
+
+Description
+
+I_64
+UL
+UL
+
+See section 3.2
+milliseconds
+Target ID
+Request typ
+
+5.
+
+requestPriority
+
+4
+
+UL
+
+Request Priority
+
+6.
+7.
+8.
+
+Spare1
+direction_el
+direction_az
+
+4
+8
+8
+
+UL
+D
+D
+
+spare
+Request target Elevation
+Request target Azimuth
+
+9.
+10.
+11.
+12.
+13.
+14.
+15.
+
+direction_range
+velocity
+Spare2
+Spare3
+Spare4
+Spare5
+Spare6
+
+8
+8
+4
+4
+4
+4
+4
+
+D
+D
+UL
+UL
+UL
+UL
+UL
+
+Request target Range
+Request target velocity
+spare
+spare
+spare
+spare
+spare
+
+Encoding
+
+milliseconds
+3-INIT_HPT
+4-INIT_STT
+5-DELETE_STT
+6-DELETE_HPT
+7-DELETE TARGET
+8-DELETE
+ALL_TARGETS
+0-NORMAL
+PRIORITY
+[Rad] [-pi/2 : pi/2]
+[Rad] [-pi : pi]
+meter
+meter/sec
+
+Note: Fields 5 – 15 are for future use
+
+DOC. NO. 6950V704-001
+
+REV. –
+This document contains proprietary information of ELTA Systems Ltd.
+Copyright 2025 ELTA Systems Ltd.
+
+PAGE 22 OF 40 PAGES
+
+5.1.6
+
+Keep Alive
+keep alive
+
+Message Name
+Message Code/Id
+Message Size
+In/Out Type
+Rate
+Timing Constraints
+Acknowledge Required
+Validation
+Message Ability
+Description
+Message Words
+
+:
+:
+:
+:
+:
+:
+:
+:
+:
+:
+:
+
+No.
+
+Size
+(Bytes)
+
+1.
+
+Field Name
+
+0xCEF00400
+
+20 Bytes
+In
+Periodic every 1 Sec
+
+None
+message for keep alive UDP channel C2 required to send every 1 second.
+
+See table below.
+
+Type
+
+Message Header 20
+
+DOC. NO. 6950V704-001
+
+Description
+
+Encoding
+
+See section 3.2
+
+REV. –
+This document contains proprietary information of ELTA Systems Ltd.
+Copyright 2025 ELTA Systems Ltd.
+
+PAGE 23 OF 40 PAGES
+
+5.1.7
+
+Set Sensor Position
+Set Sensor Position
+
+Message Name
+Message Code/Id
+Message Size
+In/Out Type
+Rate
+Timing Constraints
+Acknowledge Required
+Validation
+Message Ability
+Description
+
+:
+:
+:
+:
+:
+:
+:
+:
+:
+:
+
+Message Words
+
+: See table below.
+
+No.
+
+Size
+(Bytes)
+20
+4
+
+1.
+2.
+
+Field Name
+Message Header
+Sensor_id
+
+0xCEF00418
+
+92 Bytes
+In
+Upon user request
+
+None
+The message allows to C2 to setting the installation data for each sensor.
+The message is applicable on maintenance mode.
+
+Type
+
+Description
+
+Encoding
+
+See section 3.2
+UL
+
+RADAR_1 = 0
+RADAR_2 = 1
+RADAR_3 = 2
+RADAR_4 = 3
+HFL_1 = 4
+HFL_2 = 5
+HFL_3 = 6
+
+3.
+4.
+5.
+6.
+7.
+8.
+9.
+10.
+11.
+12.
+13.
+
+pitch
+roll
+yaw
+X
+Y
+Z
+Spare1
+Spare2
+Spare3
+Spare4
+Spare5
+
+DOC. NO. 6950V704-001
+
+8
+8
+8
+8
+8
+8
+4
+4
+4
+4
+4
+
+D
+D
+D
+D
+D
+D
+UL
+UL
+UL
+UL
+UL
+
+right hand rool
+right hand rool
+right hand rool
+North (NED)
+East (NED)
+Down (NED)
+
+REV. –
+This document contains proprietary information of ELTA Systems Ltd.
+Copyright 2025 ELTA Systems Ltd.
+
+HFL_4 = 7
+GFP_1 = 8
+GFP_2 = 9
+Rad [-pi/2 : pi/2]
+Rad[-pi/2 : pi/2]
+Rad[-pi : pi]
+meter
+meter
+meter
+
+PAGE 24 OF 40 PAGES
+
+5.1.8 Get Sensor Position
+Get Sensor Position
+
+Message Name
+Message Code/Id
+Message Size
+In/Out Type
+Rate
+Timing Constraints
+Acknowledge Required
+Validation
+Message Ability
+Description
+
+:
+:
+:
+:
+:
+:
+:
+:
+:
+:
+
+Message Words
+
+: See table below.
+
+No.
+
+Size
+(Bytes)
+
+Field Name
+
+0xCEF00419
+
+24 Bytes
+In
+Upon user request
+
+None
+The message is request from C2 to getting the current installation
+data for each sensor. The message is applicable on maintenance
+mode, the system replies with sensor position data.
+
+1.
+
+Message Header
+
+20
+
+2.
+
+Sensor_id
+
+4
+
+Type
+
+Description
+
+Encoding
+
+See section 3.2
+UL
+
+RADAR_1 = 0
+RADAR_2 = 1
+RADAR_3 = 2
+RADAR_4 = 3
+HFL_1 = 4
+HFL_2 = 5
+HFL_3 = 6
+HFL_4 = 7
+GFP_1 = 8
+GFP_2 = 9
+
+DOC. NO. 6950V704-001
+
+REV. –
+This document contains proprietary information of ELTA Systems Ltd.
+Copyright 2025 ELTA Systems Ltd.
+
+PAGE 25 OF 40 PAGES
+
+5.2
+
+RC to C2 Messages
+
+5.2.1
+
+System Status
+
+Message Name
+Message Code/Id
+Message Size
+In/Out Type
+Rate
+Timing Constraints
+Acknowledge Required
+Validation
+Message Ability
+
+:
+:
+:
+:
+:
+:
+:
+:
+:
+
+Status Message
+
+Description
+
+: The Status message sent periodically and including the radar current status
+
+0xCEF00402
+
+60 Bytes
+Out
+1 Hz or upon change
+
+None
+
+contain all parameter same as the control message, the status message can
+used for acknowledge for control message. The message applicable in all
+state.
+
+Message Words
+
+No.
+
+: See table below.
+
+Field Name
+
+Size
+(Bytes)
+
+Type
+
+Description
+
+Encoding
+
+1.
+
+Message Header
+
+20
+
+2.
+
+state
+
+4
+
+ENUM
+
+Radar state report:
+
+0 – OFF
+1 – INIT
+2 – STANDBY
+3 – MAINTENANCE
+4 – OPERATE
+
+3.
+
+Mission Category
+
+4
+
+ENUM
+
+UP TO 5 MISSION
+
+0-4
+
+4.
+
+Radar1_status
+
+1
+
+B
+
+Radar 1 status
+
+5.
+
+Radar2_status
+
+1
+
+B
+
+Radar 2 status
+
+6.
+
+Radar3_status
+
+1
+
+B
+
+Radar 3 status
+
+7.
+
+Radar4_status
+
+1
+
+B
+
+Radar 4 status
+
+8.
+
+Tx
+
+4
+
+ENUM
+
+Radar Tx Enable
+
+9.
+
+Freq Index
+
+4
+
+UL
+
+Up to 10 Frequency
+
+0-fault
+1-normal
+0-fault
+1-normal
+0-fault
+1-normal
+0-fault
+1-normal
+0 – OFF
+1 – ON
+1-10
+
+10.
+
+HFL1_status
+
+1
+
+B
+
+HFL1 status
+
+11.
+
+HFL2_status
+
+1
+
+B
+
+HFL2 status
+
+12.
+
+HFL3_status
+
+1
+
+B
+
+HFL3 status
+
+13.
+
+HFL2_status
+
+1
+
+B
+
+HFL4 status
+
+14.
+15.
+16.
+17.
+
+Spare1
+Spare2
+Spare3
+Spare4
+
+4
+4
+4
+4
+
+UL
+UL
+UL
+UL
+
+DOC. NO. 6950V704-001
+
+See section 3.2
+
+REV. –
+This document contains proprietary information of ELTA Systems Ltd.
+Copyright 2025 ELTA Systems Ltd.
+
+0-fault
+1-normal
+0-fault
+1-normal
+0-fault
+1-normal
+0-fault
+1-normal
+
+PAGE 26 OF 40 PAGES
+
+Notes:
+•
+
+In case Radar(No)_status is reporting fault the antenna will not report targets
+
+DOC. NO. 6950V704-001
+
+REV. –
+This document contains proprietary information of ELTA Systems Ltd.
+Copyright 2025 ELTA Systems Ltd.
+
+PAGE 27 OF 40 PAGES
+
+5.2.2
+
+Target Data
+
+Targets data has three type of messages the output message is depent on the system
+configuration , only one kind of target data message is send .
+This Target Base data struct will be used by diffrent messages.
+its inefication as TargetbaseData
+The TargetbaseData size is 332 Bytes
+1.
+2.
+
+targetId
+targetTimeTag
+
+4
+8
+
+UL
+
+I_64
+
+Uniq target id
+Last update time of the target
+
+3.
+
+targetFirstUpdateTime
+
+8
+
+I_64
+
+Target creation time
+
+4.
+
+targetSource
+
+4
+
+ENUM
+
+5.
+6.
+7.
+
+fusionTargetSource[0:3]
+sourceTrack id[0:3]
+Target status
+
+4*4
+4*4
+4
+
+UL
+UL
+ENUM
+
+N/A
+N/A
+Target status
+
+8.
+9.
+
+score
+targetClassification
+
+4
+4
+
+F
+ENUM
+
+0-Not Relevant
+
+10.
+11.
+12.
+13.
+14.
+
+ClassificationConfidence
+seniority
+rcs
+target_elevation
+target_azimuth
+
+4
+4
+4
+8
+8
+
+F
+UL
+F
+D
+D
+
+15.
+16.
+17.
+18.
+19.
+20.
+21.
+
+target_range
+target_abs_vel
+target_course
+target_sigma_elevation
+target_sigma_azimuth
+target_sigma_range
+Number_of_dimention
+
+8
+4
+4
+8
+8
+8
+4
+
+D
+F
+F
+D
+D
+D
+ENUM
+
+22. \ Coordinate_system
+
+4
+
+ENUM
+
+23.
+
+cartesianLocationAvailable
+
+1
+
+B
+
+24.
+
+cartesianVelocityAvailable
+
+1
+
+B
+
+25.
+
+polarLocationAvailable
+
+1
+
+B
+
+26.
+
+polarVelocityAvailable
+
+1
+
+B
+
+27.
+
+geoLocationAvailable
+
+1
+
+B
+
+28.
+
+absoluteVelocityAvailable
+
+1
+
+B
+
+29.
+
+cartesianVarianceAvailable
+
+1
+
+B
+
+30.
+
+Sapr1
+
+1
+
+B
+
+DOC. NO. 6950V704-001
+
+Mili Sec From
+midnight
+Mili Sec From
+midnight
+See Appendix A
+
+1 - New
+2 - Update
+3 – Delete
+4 - Extrapolate
+
+0-10
+See Appendix A
+
+0-100
+Number of updates
+Target estimated RCS
+Polar Coordinate
+Polar Coordinate
+Polar Coordinate
+
+unit: [dbsm]
+
+[Rad] [-pi/2 : pi/2]
+[Rad] [-pi : pi]
+meters
+m/s
+
+Polar Coordinate
+Polar Coordinate
+Polar Coordinate
+
+REV. –
+This document contains proprietary information of ELTA Systems Ltd.
+Copyright 2025 ELTA Systems Ltd.
+
+Rad
+[Rad] [0-2pi]
+[Rad] [0-2pi]
+meters
+1-Radar_2D
+2-Radar_3D
+3-Optic_2D
+4-Fusion_3D
+5-HFL_2D
+0-SYSTEM_AXIS
+1-WORLD_AXIS
+0-Not available
+1- available
+0-Not available
+1- available
+0-Not available
+1- available
+0-Not available
+1- available
+0-Not available
+1- available
+0-Not available
+1- available
+0-Not available
+1- available
+
+0
+PAGE 28 OF 40 PAGES
+
+data valid if
+geoLocationAvailable =1
+data valid if
+geoLocationAvailable =1
+data valid if
+geoLocationAvailable =1
+Cartesian NED,
+data valid if
+cartesianLocationAvailable =1
+Cartesian NED,
+data valid if
+cartesianLocationAvailable =1
+Cartesian NED,
+data valid if
+cartesianLocationAvailable =1
+
+Meters
+
+Meters/Sec
+
+D
+
+Cartesian NED,
+data valid if
+cartesianVelocityAvailable =1
+Cartesian NED,
+data valid if
+cartesianVelocityAvailable =1
+Cartesian NED,
+data valid if
+cartesianVelocityAvailable =1
+Cartesian NED,
+data valid if
+cartesianVarianceAvailable =1
+Cartesian NED,
+data valid if
+cartesianVarianceAvailable =1
+Cartesian NED,
+data valid if
+cartesianVarianceAvailable =1
+Cartesian NED,
+data valid if
+cartesianVarianceAvailable =1
+Cartesian NED,
+data valid if
+cartesianVarianceAvailable =1
+Cartesian NED,
+data valid if
+cartesianVarianceAvailable =1
+Polar Coordinate,
+data valid if
+polarVelocityAvailable =1
+Polar Coordinate,
+data valid if
+polarVelocityAvailable =1
+Polar Coordinate,
+data valid if
+polarVelocityAvailable =1
+Polar Coordinate,
+
+8
+
+D
+
+Polar Coordinate,
+
+Rad/s
+
+target_variance_vel_range
+
+8
+
+D
+
+Polar Coordinate,
+
+Meter/Sec
+
+target_snr
+
+4
+
+F
+
+31.
+
+target_altitude
+
+8
+
+D
+
+32.
+
+target_latitude
+
+8
+
+D
+
+33.
+
+target_longitude
+
+8
+
+D
+
+34.
+
+target_X
+
+8
+
+D
+
+35.
+
+target_Y
+
+8
+
+D
+
+36.
+
+target_Z
+
+8
+
+D
+
+37.
+
+target_vel_X
+
+8
+
+D
+
+38.
+
+target_vel_Y
+
+8
+
+D
+
+39.
+
+target_vel_Z
+
+8
+
+D
+
+40.
+
+target_sigma_X
+
+8
+
+D
+
+41.
+
+target_sigma_Y
+
+8
+
+D
+
+42. Starget_sigma_Z
+
+8
+
+D
+
+43.
+
+target_sigma_vel_X
+
+8
+
+D
+
+44.
+
+target_sigma_vel_Y
+
+8
+
+D
+
+45.
+
+target_sigma_vel_Z
+
+8
+
+D
+
+46.
+
+target_vel_elevation
+
+8
+
+D
+
+47.
+
+target_vel_azimuth
+
+8
+
+D
+
+48.
+
+target_vel_range
+
+8
+
+D
+
+49.
+
+target_variance_vel_elevation
+
+8
+
+50.
+
+target_variance_vel_azimuth
+
+51.
+52.
+
+DOC. NO. 6950V704-001
+
+REV. –
+This document contains proprietary information of ELTA Systems Ltd.
+Copyright 2025 ELTA Systems Ltd.
+
+Radians [-pi/2 : pi/2]
+Radians [-pi : pi]
+Meters
+
+Meters
+
+Meters
+
+Meters/Sec
+
+Meters/Sec
+
+Meters
+
+Meters
+
+Meters
+
+Meters/Sec
+
+Meters/Sec
+
+Meters/Sec
+
+Rad/s
+
+Rad/s
+
+Meter/Sec
+
+Rad/s
+
+PAGE 29 OF 40 PAGES
+
+53.
+
+target_hpt
+
+1
+
+B
+
+54.
+55.
+56.
+57.
+
+Spare5
+Spare6
+Spare7
+
+1
+1
+
+B
+B
+
+1
+4
+
+B
+F
+
+Spare8
+
+DOC. NO. 6950V704-001
+
+REV. –
+This document contains proprietary information of ELTA Systems Ltd.
+Copyright 2025 ELTA Systems Ltd.
+
+0-NO
+1-HPT
+2-STT
+
+PAGE 30 OF 40 PAGES
+
+5.2.2.1
+
+Targets Data
+
+Message Name
+Message Code/Id
+Message Size
+In/Out Type
+Rate
+Timing Constraints
+Acknowledge Required
+Validation
+Message Ability
+Description
+
+:
+:
+:
+:
+:
+:
+:
+:
+:
+:
+
+Message Words
+
+: See table below.
+
+No.
+
+Field Name
+
+1.
+
+Message Header
+
+2.
+3.
+
+targetCount
+targetdata[0:49]
+
+DOC. NO. 6950V704-001
+
+Targets Data
+0xCEF00403
+
+16624 Bytes
+Out
+1 Hz
+
+None
+Targets data message to C2 system contains up to 50 targets in message,
+in case there are more than 50 target the message will send multiple
+times. the message applicable in operate state
+
+Size
+(Bytes)
+20
+4
+
+Type
+
+Description
+
+Encoding
+
+See section 3.2
+UL
+
+Number of targets
+
+See section 5.2.2
+
+332*50
+
+REV. –
+This document contains proprietary information of ELTA Systems Ltd.
+Copyright 2025 ELTA Systems Ltd.
+
+PAGE 31 OF 40 PAGES
+
+5.2.2.2
+
+Single Target Data
+
+Message Name
+Message Code/Id
+Message Size
+In/Out Type
+Rate
+Timing Constraints
+Acknowledge Required
+Validation
+Message Ability
+Description
+Message Words
+
+No.
+
+Field Name
+
+:
+:
+:
+:
+:
+:
+:
+:
+:
+:
+:
+
+Single Target Data
+0xCEF00404
+
+352 Bytes
+Out
+On change (Track New/Update/delete).
+
+None
+Single Target data message to C2 contain single target.
+
+See table below.
+
+1.
+
+Message Header
+
+Size
+(Bytes)
+20
+
+2.
+
+targetdata
+
+332
+
+DOC. NO. 6950V704-001
+
+Type
+
+Description
+
+Encoding
+
+See section 3.2
+See section 5.2.2
+
+REV. –
+This document contains proprietary information of ELTA Systems Ltd.
+Copyright 2025 ELTA Systems Ltd.
+
+PAGE 32 OF 40 PAGES
+
+5.2.2.3
+
+Single Target Extended Data
+
+Message Name
+Message Code/Id
+Message Size
+In/Out Type
+Rate
+Timing Constraints
+Acknowledge Required
+Validation
+Message Ability
+Description
+
+:
+:
+:
+:
+:
+:
+:
+:
+:
+:
+
+Message Words
+
+: See table below.
+
+No.
+
+Field Name
+
+Singel Target Extended Data
+0xCEF00414
+
+528 Bytes
+Out
+On change (Track New/Update/delete).
+
+None
+Single Target data message to C2 contain single target including Track and
+Plot.
+
+Size
+(Bytes)
+20
+
+Type
+
+Description
+
+Encoding
+
+1.
+
+Message Header
+
+2.
+
+targetdata
+
+332
+
+3.
+
+plot_time
+
+8
+
+I_64
+
+Plot update time
+
+Mili Sec From
+midnight
+
+4.
+5.
+6.
+
+plot_id
+plot_elevation
+plot_azimuth
+
+4
+8
+8
+
+UL
+D
+D
+
+Polar Coordinate
+Polar Coordinate
+
+[Rad] [-pi/2 : pi/2]
+[Rad] [-pi : pi]
+
+7.
+8.
+9.
+10.
+11.
+12.
+13.
+14.
+
+plot_range
+plot_dopler
+plot_snr
+plot_sigma_elevation
+plot sigma_azimuth
+plot sigma range
+plot sigma dop
+spare[0:15]
+
+8
+4
+4
+8
+8
+8
+4
+4*16
+
+D
+F
+F
+D
+D
+D
+F
+F
+
+Polar Coordinate
+
+Meters
+Meters/sec
+DB
+[Rad] 0 : 2*pi]
+[Rad] [0: 2*pi]
+Meters
+Meters^2
+
+DOC. NO. 6950V704-001
+
+See section 3.2
+See section 5.2.2
+
+Polar Coordinate
+Polar Coordinate
+Polar Coordinate
+
+REV. –
+This document contains proprietary information of ELTA Systems Ltd.
+Copyright 2025 ELTA Systems Ltd.
+
+PAGE 33 OF 40 PAGES
+
+Notes:
+•
+
+See Appendix A, Attach to this document .
+
+•
+
+When target is delete only targetId and target status fiels are relevants.
+
+•
+
+Target position data is relative to the north asuuming motion message is available and send
+form C2/INS to the system.
+
+•
+
+In case of target status Field is Extrapolate plot data in not relevant .
+
+•
+
+It might occur that a target report shall appear without the INIT status(targetstatus field )
+because of radar filtering conditions.
+
+DOC. NO. 6950V704-001
+
+REV. –
+This document contains proprietary information of ELTA Systems Ltd.
+Copyright 2025 ELTA Systems Ltd.
+
+PAGE 34 OF 40 PAGES
+
+5.2.3
+
+Bit Status Data
+
+Message Name
+Message Code/Id
+Message Size
+In/Out Type
+Rate
+Timing Constraints
+Acknowledge Required
+Validation
+Message Ability
+Description
+
+:
+:
+:
+:
+:
+:
+:
+:
+:
+:
+
+Message Words
+
+: See table below.
+
+No.
+
+Field Name
+
+Bit Status Data
+0xCEF00406
+
+1344 Bytes
+Out
+
+None
+Bit Status data message contain information of the Hardware and Software state
+
+The system will inform the C2 system with the system BIT results.
+This message will be used in the following scenarios:
+1. In completion of the PBIT (Power up BIT) process, PBIT process
+will be apply on initialization of the radar system.
+2. In completion of the CBIT (Continues BIT) process (send 1 sec
+periodically).
+3. In response to BIT request message after completion of the IBIT
+process. The message will contain the errors generated during the
+IBIT tests.
+
+1.
+
+Message Header
+
+Size
+(Bytes)
+20
+
+2.
+3.
+4.
+
+noErrors
+errorId
+errorSeverity
+
+4
+4
+4
+
+UL
+UL
+ENUM
+
+5.
+6.
+
+Category
+Error State
+
+4
+4
+
+ENUM
+ENUM
+
+errorDataStruct
+Spare1
+Spare2
+Spare3
+Spare4
+Fildes 3-11 repeat 10 times
+
+100
+4
+4
+4
+4
+
+C
+UL
+UL
+UL
+UL
+
+7.
+8.
+9.
+10.
+11.
+
+DOC. NO. 6950V704-001
+
+Type
+
+Description
+
+Encoding
+
+See section 3.2
+0-10
+See Appendix B
+0 = WARNING
+1 = INTERMEDIATE
+2 = SEVERE
+1 = Operator
+0 = Exists
+1 = Vanished
+2= REPEATED
+3 = NOT_EXIST
+String error description
+
+REV. –
+This document contains proprietary information of ELTA Systems Ltd.
+Copyright 2025 ELTA Systems Ltd.
+
+PAGE 35 OF 40 PAGES
+
+5.2.4
+
+Maintenance Data
+
+Message Name
+Message Code/Id
+Message Size
+In/Out Type
+Rate
+Timing Constraints
+Acknowledge Required
+Validation
+Message Ability
+Description
+
+:
+:
+:
+:
+:
+:
+:
+:
+:
+:
+
+Message Words
+
+: See table below.
+
+No.
+1.
+
+Maintenance Data
+0xCEF00407
+
+2008 Bytes
+Out
+
+None
+The Message contain version data including SW and FW version number of
+all system components. message send accordance to the maintenance
+request from the C2
+
+Field Name
+Message Header
+
+2.
+System_major
+3.
+System_minor
+4.
+System_revision
+5.
+System_build
+6.
+System_part_number
+7.
+System_serial_number
+8.
+componentSW_Name
+9.
+componentSW_ver_major
+10. componentSW_ver_minor
+11. componentSW_ver_revision
+12. componentSW_ver_build
+13. componentSW_type
+Fields 8-13 repeat 30 times
+14. componentFW_Name
+15. componentFW_ver_major
+16. componentFW_ver_minor
+17. componentFW_ver_revision
+18. componentFW_ver_build
+19. componentFW_type
+Fields 14-19 repeat 30 times
+20. Spare[0-9]
+
+DOC. NO. 6950V704-001
+
+Size
+(Bytes)
+20
+
+Type
+
+Description
+
+2
+2
+2
+2
+10
+10
+20
+2
+2
+2
+2
+4
+
+US
+US
+US
+US
+C
+C
+C
+US
+US
+US
+US
+ENUM
+
+System Major Release
+System Minor Release
+System Revision
+System Build Number
+System part number
+System serial number
+componentName String
+Major Release
+Minor Release
+Build Number
+part number
+
+20
+2
+2
+2
+2
+4
+
+C
+US
+US
+US
+US
+ENUM
+
+componentName String
+Major Release
+Minor Release
+Build Number
+part number
+
+4*10
+
+UL
+
+Encoding
+
+See section 3.2
+
+String
+string
+string
+
+See Appendix C
+
+REV. –
+This document contains proprietary information of ELTA Systems Ltd.
+Copyright 2025 ELTA Systems Ltd.
+
+string
+
+See Appendix C
+
+PAGE 36 OF 40 PAGES
+
+5.2.5
+
+Acknowledge
+
+Message Name
+Message Code/Id
+Message Size
+In/Out Type
+Rate
+Timing Constraints
+Acknowledge Required
+Validation
+Message Ability
+Description
+
+:
+:
+:
+:
+:
+:
+:
+:
+:
+:
+
+Message Words
+
+: See table below.
+
+No.
+
+Field Name
+
+Acknowledge Message
+0xCEF00405
+
+56 Bytes
+Out
+
+None
+Acknowledge message send in case of Acknowledge is required for some request
+or control message
+
+1.
+
+Message Header
+
+Size
+(Bytes)
+20
+
+Type
+
+2.
+
+Acknowledge
+
+4
+
+ENUM
+
+3.
+4.
+
+refer message
+
+4
+4
+
+ENUM
+UL
+
+4
+4
+4
+4
+4
+4
+
+ENUM
+UL
+UL
+UL
+UL
+UL
+
+Description
+See section 3.2
+
+refer Sequence number
+5.
+6.
+7.
+8.
+9.
+10.
+
+Reject Reason
+Spare1
+Spare2
+Spare3
+Spare4
+Spare1
+
+DOC. NO. 6950V704-001
+
+Encoding
+
+REV. –
+This document contains proprietary information of ELTA Systems Ltd.
+Copyright 2025 ELTA Systems Ltd.
+
+0 = REJECT
+1 = OK
+1=RESOURCE_REQ
+Acknowledge to
+refer seq number of
+requests form the
+block header
+TBD
+
+PAGE 37 OF 40 PAGES
+
+5.2.6
+
+Sensor Position
+
+Message Name
+Message Code/Id
+Message Size
+In/Out Type
+Rate
+Timing Constraints
+Acknowledge Required
+Validation
+Message Ability
+Description
+
+:
+:
+:
+:
+:
+:
+:
+:
+:
+:
+
+Message Words
+
+: See table below.
+
+No.
+
+Field Name
+
+1.
+
+Message Header
+
+2.
+
+Sensor
+
+Sensor Position Message
+0xCEF0041A
+
+92 Bytes
+Out
+
+None
+The message will send as response to set sensor position message and
+contain the current installation data for each sensor.
+
+Size
+(Bytes)
+20
+
+Type
+
+4
+
+ENUM
+
+Description
+
+Encoding
+
+See section 3.2
+RADAR_1 = 0
+RADAR_2 = 1
+RADAR_3 = 2
+RADAR_4 = 3
+HFL_1 = 4
+HFL_2 = 5
+HFL_3 = 6
+
+3.
+
+pitch
+
+8
+
+D
+
+right hand rool
+
+HFL_4 = 7
+GFP_1 = 8
+GFP_2 = 9
+Rad [-pi/2 : pi/2]
+
+4.
+
+roll
+
+8
+
+D
+
+right hand rool
+
+Rad[-pi/2 : pi/2]
+
+5.
+
+yaw
+
+8
+
+D
+
+right hand rool
+
+Rad[-pi : pi]
+
+6.
+
+X
+
+8
+
+D
+
+North (NED)
+
+meter
+
+7.
+
+Y
+
+8
+
+D
+
+East (NED)
+
+meter
+
+8.
+
+Z
+
+8
+
+D
+
+Down (NED)
+
+meter
+
+9.
+
+Spare1
+
+4
+
+UL
+
+10.
+
+Spare2
+
+4
+
+UL
+
+11.
+
+Spare3
+
+4
+
+UL
+
+12.
+
+Spare4
+
+4
+
+UL
+
+13.
+
+Spare5
+
+4
+
+UL
+
+DOC. NO. 6950V704-001
+
+REV. –
+This document contains proprietary information of ELTA Systems Ltd.
+Copyright 2025 ELTA Systems Ltd.
+
+PAGE 38 OF 40 PAGES
+
+Message Sequencing
+The following figure represent the messages sequence between the ELM-2135 and C2 System.
+ELM 2135
+
+C2
+Set Sensor Position [TDP]
+Get Sensor Position [TDP]
+
+Sensor Position [TDP]
+Keep Alive [UDP]
+
+System Status [UDP[
+System Control
+[TCP]
+System MOTION [TCP]
+BIT Request [TCP]
+
+Bit Status Data [UDP]
+
+Resource Request
+[TCP]
+
+Acknowledge [TCP]
+
+Maintenance Request [TCP]
+Maintenance Data [TCP]
+
+6.1
+
+InitState
+
+At the end of the initialization process, the radar is in standby mode and ready to move to operate.
+The Radar will respond with Status message every ~1 second and will ask for
+acknowledge for any (3) statuses (~3 sec).
+keep alive message should be response in less than 3sec. otherwise the Radar
+will decide "loss of communication" and will restart all connection sockets
+
+6.2
+
+Standby State
+
+The External system shall send the radar a System Control message to
+command the Radar to move to operate state
+.
+The Radar will respond with Status message every ~1 seconds and will ask
+for acknowledge for any (3) statuses. (~3 sec).
+keep alive message should be responded in less than 3sec, otherwise the
+Radar will decide "loss of communication" and will restart all connection sockets.
+
+DOC. NO. 6950V704-001
+
+REV. –
+This document contains proprietary information of ELTA Systems Ltd.
+Copyright 2025 ELTA Systems Ltd.
+
+PAGE 39 OF 40 PAGES
+
+6.3
+
+OperateState
+
+In Operate state, reports are sent to C2 System.
+Target data message using TCP sockets.
+Status message every ~1 second and will ask for acknowledge for any
+(3) statuses (~3 sec), using UDP sockets.
+keep alive message should be responded in less than 3sec. otherwise the
+Radar will decide "loss of communication" and will restart all connection sockets.
+The operator can move to STANDBY state using System Control message .
+
+6.4
+
+Mode transition roles
+
+Current
+Mode
+
+Init
+
+New Mode
+Init
+Standby
+Operational
+Maintenance
+
+✓
+X
+X
+
+DOC. NO. 6950V704-001
+
+Standby
+
+Operational
+
+Maint.
+
+X
+
+X
+✓
+
+X
+✓
+X
+
+✓
+✓
+
+X
+
+REV. –
+This document contains proprietary information of ELTA Systems Ltd.
+Copyright 2025 ELTA Systems Ltd.
+
+PAGE 40 OF 40 PAGES
+
+
