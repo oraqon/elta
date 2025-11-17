@@ -1,4 +1,6 @@
 {
   "log_level": "INFO",
-  "log_file": "logs/elta_client.log"
+  "log_file": "logs/elta_client.log",
+  "tcp_connect_ip": "132.4.6.205",
+  "tcp_connect_port": 30087
 }

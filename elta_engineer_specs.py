@@ -40,7 +40,12 @@ class EltaEngineerSpecClient:
                 self.config = json.load(f)
         except Exception as e:
             # Default config if file not found
-            self.config = {'log_level': 'DEBUG', 'log_file': None}
+            self.config = {
+                'log_level': 'DEBUG',
+                'log_file': None,
+                'tcp_connect_ip': '132.4.6.205',
+                'tcp_connect_port': 30087
+            }
             print(f"Warning: Could not load config.json, using defaults: {e}")
     
     def _setup_logging(self):
@@ -179,17 +184,21 @@ class EltaEngineerSpecClient:
             self.logger.error(f"   ❌ Error sending Acknowledge: {e}")
         
     def start_tcp_client(self):
-        """Connect to 132.4.6.205:30087 as specified by engineer"""
+        """Connect to TCP target as specified in config"""
         def tcp_handler():
+            # Read TCP target from config
+            tcp_ip = self.config.get('tcp_connect_ip', '132.4.6.205')
+            tcp_port = self.config.get('tcp_connect_port', 30087)
+            
             while self.running:
                 try:
-                    self.logger.info("🔌 TCP connecting to 132.4.6.205:30087")
+                    self.logger.info(f"🔌 TCP connecting to {tcp_ip}:{tcp_port}")
                     
                     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                     sock.settimeout(15.0)
-                    sock.connect(('132.4.6.205', 30087))
+                    sock.connect((tcp_ip, tcp_port))
                     
-                    self.logger.info("✅ TCP CONNECTED to 132.4.6.205:30087!")
+                    self.logger.info(f"✅ TCP CONNECTED to {tcp_ip}:{tcp_port}!")
                     self.stats['tcp_connections'] += 1
                     
                     # Send System Control message to move radar to OPERATE state (per ICD Section 6.2)
@@ -205,7 +214,7 @@ class EltaEngineerSpecClient:
                                 self.logger.error("TCP connection closed by server")
                                 break
                                 
-                            self.logger.debug(f"📨 TCP received {len(data)} bytes from 132.4.6.205:30087")
+                            self.logger.debug(f"📨 TCP received {len(data)} bytes from {tcp_ip}:{tcp_port}")
                             self.logger.debug(f"   Raw: {data.hex()}")
                             
                             # Try to decode the message
@@ -309,10 +318,13 @@ class EltaEngineerSpecClient:
         
     def run(self):
         """Main execution loop"""
+        tcp_ip = self.config.get('tcp_connect_ip', '132.4.6.205')
+        tcp_port = self.config.get('tcp_connect_port', 30087)
+        
         self.logger.debug("🚀 ELTA ENGINEER SPECIFICATION CLIENT")
         self.logger.debug("=" * 60)
         self.logger.debug("📋 Based on ELTA Engineer Communication:")
-        self.logger.debug("   🔌 TCP: Connect to 132.4.6.205:30087")
+        self.logger.debug(f"   🔌 TCP: Connect to {tcp_ip}:{tcp_port}")
         self.logger.debug("   📡 UDP: Listen on port 22230 for data from simulator port 30080")
         self.logger.debug("=" * 60)
         
