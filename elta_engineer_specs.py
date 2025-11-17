@@ -40,16 +40,37 @@ class EltaEngineerSpecClient:
                 self.config = json.load(f)
         except Exception as e:
             # Default config if file not found
-            self.config = {'log_level': 'DEBUG'}
+            self.config = {'log_level': 'DEBUG', 'log_file': None}
             print(f"Warning: Could not load config.json, using defaults: {e}")
     
     def _setup_logging(self):
         """Setup logging based on config"""
         log_level = self.config.get('log_level', 'DEBUG')
+        log_file = self.config.get('log_file', None)
+        
+        # Configure logging handlers
+        handlers = []
+        
+        if log_file:
+            # Log to file
+            file_handler = logging.FileHandler(log_file, mode='a', encoding='utf-8')
+            file_handler.setFormatter(logging.Formatter(
+                '[%(asctime)s.%(msecs)03d] %(message)s',
+                datefmt='%Y-%m-%d %H:%M:%S'
+            ))
+            handlers.append(file_handler)
+        else:
+            # Log to console (default)
+            console_handler = logging.StreamHandler()
+            console_handler.setFormatter(logging.Formatter(
+                '[%(asctime)s.%(msecs)03d] %(message)s',
+                datefmt='%Y-%m-%d %H:%M:%S'
+            ))
+            handlers.append(console_handler)
+        
         logging.basicConfig(
             level=getattr(logging, log_level),
-            format='[%(asctime)s.%(msecs)03d] %(message)s',
-            datefmt='%Y-%m-%d %H:%M:%S'
+            handlers=handlers
         )
         self.logger = logging.getLogger(__name__)
         
