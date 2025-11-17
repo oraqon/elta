@@ -7,6 +7,8 @@ Decodes radar messages and presents them in readable format
 
 import struct
 import time
+import json
+import logging
 from datetime import datetime, timedelta
 from enum import Enum
 import math
@@ -63,6 +65,24 @@ class EltaMessageDecoder:
         self.message_types = {msg.value: msg.name.replace('_', ' ').title() for msg in MessageType}
         self.system_states = {state.value: state.name.replace('_', ' ').title() for state in SystemState}
         self.target_classes = {tc.value: tc.name.replace('_', ' ').title() for tc in TargetClass}
+        
+        # Load configuration and setup logging
+        self._load_config()
+        self._setup_logging()
+    
+    def _load_config(self):
+        """Load configuration from config.json"""
+        try:
+            with open('config.json', 'r') as f:
+                self.config = json.load(f)
+        except Exception:
+            # Default config if file not found
+            self.config = {'log_level': 'DEBUG'}
+    
+    def _setup_logging(self):
+        """Setup logging based on config"""
+        log_level = self.config.get('log_level', 'DEBUG')
+        self.logger = logging.getLogger(__name__)
         
     def decode_message(self, data):
         """
@@ -525,27 +545,35 @@ class EltaMessageDecoder:
 # Test function
 def test_decoder():
     """Test the decoder with sample data"""
+    # Setup logging for test
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format='[%(asctime)s.%(msecs)03d] %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
+    )
+    logger = logging.getLogger(__name__)
+    
     decoder = EltaMessageDecoder()
     
     # Sample Keep Alive message - CORRECTED header format per ICD Section 3.2
     keep_alive_data = struct.pack('<IIIII', 0xCEF00400, 20, 123456789, 1, 0x2135)
-    print("=== KEEP ALIVE TEST ===")
-    print(decoder.decode_message(keep_alive_data))
+    logger.debug("=== KEEP ALIVE TEST ===")
+    logger.debug(decoder.decode_message(keep_alive_data))
     
     # Sample System Status message - CORRECTED header format per ICD Section 3.2
     header = struct.pack('<IIIII', 0xCEF00402, 32, 123456789, 2, 0x2135)
     payload = struct.pack('<IIII', 2, 1, 0, 250)  # Operational, Search mode, No error, 25.0°C
     status_data = header + payload
-    print("\n=== SYSTEM STATUS TEST ===")
-    print(decoder.decode_message(status_data))
+    logger.debug("\n=== SYSTEM STATUS TEST ===")
+    logger.debug(decoder.decode_message(status_data))
     
     # Sample Target Report message - CORRECTED header format per ICD Section 3.2
     header = struct.pack('<IIIII', 0xCEF00403, 40, 123456789, 3, 0x2135)
     payload = struct.pack('<I', 1)  # 1 target
     target_data = struct.pack('<IIIIiiii', 1001, 5000000, 45000, 10000, 2500, -500, 1, 85)  # Sample target
     target_report_data = header + payload + target_data
-    print("\n=== TARGET REPORT TEST ===")
-    print(decoder.decode_message(target_report_data))
+    logger.debug("\n=== TARGET REPORT TEST ===")
+    logger.debug(decoder.decode_message(target_report_data))
 
 if __name__ == "__main__":
     test_decoder()

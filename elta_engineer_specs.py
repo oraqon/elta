@@ -11,11 +11,19 @@ import socket
 import threading
 import time
 import struct
+import json
+import logging
 from datetime import datetime
 from elta_message_decoder import EltaMessageDecoder
 
 class EltaEngineerSpecClient:
     def __init__(self):
+        # Load configuration
+        self._load_config()
+        
+        # Setup logging
+        self._setup_logging()
+        
         self.decoder = EltaMessageDecoder()
         self.running = True
         self.stats = {
@@ -24,10 +32,30 @@ class EltaEngineerSpecClient:
             'udp_messages': 0,
             'target_messages': 0
         }
+    
+    def _load_config(self):
+        """Load configuration from config.json"""
+        try:
+            with open('config.json', 'r') as f:
+                self.config = json.load(f)
+        except Exception as e:
+            # Default config if file not found
+            self.config = {'log_level': 'DEBUG'}
+            print(f"Warning: Could not load config.json, using defaults: {e}")
+    
+    def _setup_logging(self):
+        """Setup logging based on config"""
+        log_level = self.config.get('log_level', 'DEBUG')
+        logging.basicConfig(
+            level=getattr(logging, log_level),
+            format='[%(asctime)s.%(msecs)03d] %(message)s',
+            datefmt='%Y-%m-%d %H:%M:%S'
+        )
+        self.logger = logging.getLogger(__name__)
         
     def log(self, message):
-        timestamp = datetime.now().strftime("[%Y-%m-%d %H:%M:%S.%f]")
-        print(f"{timestamp} {message}")
+        """Log a message at debug level"""
+        self.logger.debug(message)
         
     def _send_system_control_operate(self, sock):
         """Send System Control message to command radar to OPERATE state"""
@@ -251,22 +279,22 @@ class EltaEngineerSpecClient:
         
     def print_stats(self):
         """Print connection statistics"""
-        print("\n📊 ELTA ENGINEER SPEC CLIENT STATISTICS:")
-        print("=" * 60)
-        print(f"TCP Connections:         {self.stats['tcp_connections']}")
-        print(f"TCP Messages Received:   {self.stats['tcp_messages']}")
-        print(f"UDP Messages Received:   {self.stats['udp_messages']}")
-        print(f"🎯 Target Data Messages: {self.stats['target_messages']} 🎯")
-        print("=" * 60)
+        self.logger.debug("\n📊 ELTA ENGINEER SPEC CLIENT STATISTICS:")
+        self.logger.debug("=" * 60)
+        self.logger.debug(f"TCP Connections:         {self.stats['tcp_connections']}")
+        self.logger.debug(f"TCP Messages Received:   {self.stats['tcp_messages']}")
+        self.logger.debug(f"UDP Messages Received:   {self.stats['udp_messages']}")
+        self.logger.debug(f"🎯 Target Data Messages: {self.stats['target_messages']} 🎯")
+        self.logger.debug("=" * 60)
         
     def run(self):
         """Main execution loop"""
-        print("🚀 ELTA ENGINEER SPECIFICATION CLIENT")
-        print("=" * 60)
-        print("📋 Based on ELTA Engineer Communication:")
-        print("   🔌 TCP: Connect to 132.4.6.205:30087")
-        print("   📡 UDP: Listen on port 22230 for data from simulator port 30080")
-        print("=" * 60)
+        self.logger.debug("🚀 ELTA ENGINEER SPECIFICATION CLIENT")
+        self.logger.debug("=" * 60)
+        self.logger.debug("📋 Based on ELTA Engineer Communication:")
+        self.logger.debug("   🔌 TCP: Connect to 132.4.6.205:30087")
+        self.logger.debug("   📡 UDP: Listen on port 22230 for data from simulator port 30080")
+        self.logger.debug("=" * 60)
         
         # Start both clients
         tcp_thread = self.start_tcp_client()
