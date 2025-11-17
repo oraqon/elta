@@ -12,22 +12,26 @@ from enum import Enum
 import math
 
 class MessageType(Enum):
-    # Standard ICD message types
+    # Standard ICD message types - CORRECTED per ICD_2135M-004 specification
+    
+    # C2 to RC Messages
     KEEP_ALIVE = 0xCEF00400
     SYSTEM_CONTROL = 0xCEF00401
-    SYSTEM_MOTION = 0xCEF00402
-    SYSTEM_STATUS = 0xCEF00403
-    TARGET_REPORT = 0xCEF00404
-    ACKNOWLEDGE = 0xCEF00405
-    SINGLE_TARGET_REPORT = 0xCEF00406
-    MAINTENANCE_DATA = 0xCEF00407
-    SINGLE_TARGET_EXTENDED = 0xCEF00408
-    BIT_STATUS_DATA = 0xCEF00409
+    SYSTEM_MOTION = 0xCEF00412
     BIT_REQUEST = 0xCEF0040A
-    RESOURCE_REQUEST = 0xCEF0040B
     MAINTENANCE_REQUEST = 0xCEF0040C
+    RESOURCE_REQUEST = 0xCEF0040D
     SET_SENSOR_POSITION = 0xCEF00418
     GET_SENSOR_POSITION = 0xCEF00419
+    
+    # RC to C2 Messages  
+    SYSTEM_STATUS = 0xCEF00402
+    TARGET_REPORT = 0xCEF00403
+    SINGLE_TARGET_REPORT = 0xCEF00404
+    ACKNOWLEDGE = 0xCEF00405
+    BIT_STATUS_DATA = 0xCEF00406
+    MAINTENANCE_DATA = 0xCEF00407
+    SINGLE_TARGET_EXTENDED = 0xCEF00414
     SENSOR_POSITION = 0xCEF0041A
     
     # Actual simulator message types (discovered from live data)
@@ -85,6 +89,8 @@ class EltaMessageDecoder:
                 return self._decode_single_target(header, payload)
             elif message_id == MessageType.SYSTEM_CONTROL.value:
                 return self._decode_system_control(header, payload)
+            elif message_id == MessageType.SYSTEM_MOTION.value:
+                return self._decode_system_motion(header, payload)
             elif message_id == MessageType.SENSOR_POSITION.value:
                 return self._decode_sensor_position(header, payload)
             elif message_id == MessageType.RADAR_DATA_STREAM.value:
@@ -239,6 +245,76 @@ class EltaMessageDecoder:
             result += f"Parameter:         {parameter}\n"
         else:
             result += f"Insufficient payload data ({len(payload)} bytes)\n"
+            
+        return result
+    
+    def _decode_system_motion(self, header, payload):
+        """Decode System Motion message (0xCEF00412)"""
+        result = self._format_header(header)
+        result += "\n" + "="*60 + "\n"
+        result += "MESSAGE TYPE: SYSTEM MOTION\n"
+        result += "="*60 + "\n"
+        
+        if len(payload) >= 172:  # Expected size from ICD: 192 bytes total - 20 byte header = 172 bytes
+            try:
+                # Parse motion data according to ICD specification
+                offset = 0
+                
+                # timeOfDataGeneration (8 bytes)
+                time_gen, = struct.unpack('<Q', payload[offset:offset+8])
+                offset += 8
+                
+                # Position data (3 * 8 bytes = 24 bytes)
+                altitude, latitude, longitude = struct.unpack('<ddd', payload[offset:offset+24])
+                offset += 24
+                
+                # Attitude data (4 * 8 bytes = 32 bytes)
+                pitch, roll, yaw, heading = struct.unpack('<dddd', payload[offset:offset+32])
+                offset += 32
+                
+                # Spare fields (3 * 8 bytes = 24 bytes)
+                offset += 24  # Skip spare fields
+                
+                # Velocity data (3 * 8 bytes = 24 bytes)
+                north_vel, east_vel, down_vel = struct.unpack('<ddd', payload[offset:offset+24])
+                offset += 24
+                
+                # Angular velocity (3 * 8 bytes = 24 bytes)
+                ang_vel_x, ang_vel_y, ang_vel_z = struct.unpack('<ddd', payload[offset:offset+24])
+                offset += 24
+                
+                # Acceleration (3 * 8 bytes = 24 bytes)
+                accel_x, accel_y, accel_z = struct.unpack('<ddd', payload[offset:offset+24])
+                
+                result += f"Time of Data Generation: {time_gen} ms\n"
+                result += f"\n--- POSITION ---\n"
+                result += f"Altitude:          {altitude:.3f} m\n"
+                result += f"Latitude:          {latitude:.7f}°\n"
+                result += f"Longitude:         {longitude:.7f}°\n"
+                result += f"\n--- ATTITUDE ---\n"
+                result += f"Pitch:             {pitch:.3f} rad ({math.degrees(pitch):.1f}°)\n"
+                result += f"Roll:              {roll:.3f} rad ({math.degrees(roll):.1f}°)\n"
+                result += f"Yaw:               {yaw:.3f} rad ({math.degrees(yaw):.1f}°)\n"
+                result += f"Platform Heading:  {heading:.3f} rad ({math.degrees(heading):.1f}°)\n"
+                result += f"\n--- VELOCITY ---\n"
+                result += f"North Velocity:    {north_vel:.3f} m/s\n"
+                result += f"East Velocity:     {east_vel:.3f} m/s\n"
+                result += f"Down Velocity:     {down_vel:.3f} m/s\n"
+                result += f"\n--- ANGULAR VELOCITY ---\n"
+                result += f"Angular Vel X:     {ang_vel_x:.6f} rad/s\n"
+                result += f"Angular Vel Y:     {ang_vel_y:.6f} rad/s\n"
+                result += f"Angular Vel Z:     {ang_vel_z:.6f} rad/s\n"
+                result += f"\n--- ACCELERATION ---\n"
+                result += f"Acceleration X:    {accel_x:.3f} m/s²\n"
+                result += f"Acceleration Y:    {accel_y:.3f} m/s²\n"
+                result += f"Acceleration Z:    {accel_z:.3f} m/s²\n"
+                
+            except Exception as e:
+                result += f"Error parsing motion data: {e}\n"
+                result += f"Raw payload: {payload.hex().upper()}\n"
+        else:
+            result += f"Insufficient payload data ({len(payload)} bytes, expected 172+)\n"
+            result += f"Raw payload: {payload.hex().upper()}\n"
             
         return result
     
@@ -456,12 +532,20 @@ def test_decoder():
     print("=== KEEP ALIVE TEST ===")
     print(decoder.decode_message(keep_alive_data))
     
-    # Sample System Status message
-    header = struct.pack('<IIIII', 0x2135, 0xCEF00403, 32, 123456789, 2)
+    # Sample System Status message (corrected ID)
+    header = struct.pack('<IIIII', 0x2135, 0xCEF00402, 32, 123456789, 2)
     payload = struct.pack('<IIII', 2, 1, 0, 250)  # Operational, Search mode, No error, 25.0°C
     status_data = header + payload
     print("\n=== SYSTEM STATUS TEST ===")
     print(decoder.decode_message(status_data))
+    
+    # Sample Target Report message (corrected ID)
+    header = struct.pack('<IIIII', 0x2135, 0xCEF00403, 40, 123456789, 3)
+    payload = struct.pack('<I', 1)  # 1 target
+    target_data = struct.pack('<IIIIiiii', 1001, 5000000, 45000, 10000, 2500, -500, 1, 85)  # Sample target
+    target_report_data = header + payload + target_data
+    print("\n=== TARGET REPORT TEST ===")
+    print(decoder.decode_message(target_report_data))
 
 if __name__ == "__main__":
     test_decoder()
