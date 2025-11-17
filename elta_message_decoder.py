@@ -367,7 +367,7 @@ class EltaMessageDecoder:
         result += "="*60 + "\n"
         result += f"Payload Size: {len(payload)} bytes\n"
         
-        if payload:
+        if payload and self.logger.isEnabledFor(logging.DEBUG):
             result += f"Raw Payload (Hex): {payload.hex().upper()}\n"
             result += self._format_hex_dump(payload)
             
@@ -538,7 +538,8 @@ class EltaMessageDecoder:
         # Always show raw payload for analysis
         result += f"\nRaw Payload (Hex): {payload.hex().upper()}\n"
         result += "\nHex Dump:\n"
-        result += self._format_hex_dump(payload)
+        if self.logger.isEnabledFor(logging.DEBUG):
+            result += self._format_hex_dump(payload)
         
         return result
 

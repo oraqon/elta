@@ -92,16 +92,16 @@ class EltaEngineerSpecClient:
             
             message = header + payload
             
-            self.log(f"   📋 System Control Message Details:")
-            self.log(f"      Command: OPERATE (state=4)")
-            self.log(f"      Message Length: {len(message)} bytes")
-            self.log(f"      Raw hex: {message.hex().upper()}")
+            self.logger.debug(f"   📋 System Control Message Details:")
+            self.logger.debug(f"      Command: OPERATE (state=4)")
+            self.logger.debug(f"      Message Length: {len(message)} bytes")
+            self.logger.debug(f"      Raw hex: {message.hex().upper()}")
             
             sock.send(message)
-            self.log("   ✅ System Control message sent successfully!")
+            self.logger.info("   ✅ System Control message sent successfully!")
             
         except Exception as e:
-            self.log(f"   ❌ Error sending System Control message: {e}")
+            self.logger.error(f"   ❌ Error sending System Control message: {e}")
     
     def _start_keep_alive_sender(self, udp_sock):
         """Start Keep Alive message sender (required every 1 second per ICD)"""
@@ -123,13 +123,13 @@ class EltaEngineerSpecClient:
                     
                     # Send to radar (assuming same IP, different port or broadcast)
                     # For now, we'll log it - the actual destination depends on configuration
-                    self.log(f"💓 Sending Keep Alive #{sequence} (required by ICD)")
+                    self.logger.debug(f"💓 Sending Keep Alive #{sequence} (required by ICD)")
                     
                     sequence += 1
                     time.sleep(1.0)  # Send every 1 second as required by ICD
                     
                 except Exception as e:
-                    self.log(f"Keep Alive sender error: {e}")
+                    self.logger.error(f"Keep Alive sender error: {e}")
                     time.sleep(1.0)
                     
         thread = threading.Thread(target=keep_alive_sender, daemon=True)
@@ -152,28 +152,27 @@ class EltaEngineerSpecClient:
                                 0x12345678)      # source_id (C2 system ID) - FIFTH
             
             sock.send(message)
-            self.log("   ✅ Acknowledge message sent!")
+            self.logger.info("   ✅ Acknowledge message sent!")
             
         except Exception as e:
-            self.log(f"   ❌ Error sending Acknowledge: {e}")
+            self.logger.error(f"   ❌ Error sending Acknowledge: {e}")
         
     def start_tcp_client(self):
         """Connect to 132.4.6.205:30087 as specified by engineer"""
         def tcp_handler():
             while self.running:
                 try:
-                    self.log("🔌 TCP connecting to 132.4.6.205:30087")
-                    self.log("   📋 ELTA Engineer Specification")
+                    self.logger.info("🔌 TCP connecting to 132.4.6.205:30087")
                     
                     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                     sock.settimeout(15.0)
                     sock.connect(('132.4.6.205', 30087))
                     
-                    self.log("✅ TCP CONNECTED to 132.4.6.205:30087!")
+                    self.logger.info("✅ TCP CONNECTED to 132.4.6.205:30087!")
                     self.stats['tcp_connections'] += 1
                     
                     # Send System Control message to move radar to OPERATE state (per ICD Section 6.2)
-                    self.log("📤 Sending System Control message to command radar to OPERATE state...")
+                    self.logger.info("📤 Sending System Control message to command radar to OPERATE state...")
                     self._send_system_control_operate(sock)
                     
                     # Keep connection alive and listen for data
@@ -182,42 +181,42 @@ class EltaEngineerSpecClient:
                         try:
                             data = sock.recv(4096)
                             if not data:
-                                self.log("TCP connection closed by server")
+                                self.logger.error("TCP connection closed by server")
                                 break
                                 
-                            self.log(f"📨 TCP received {len(data)} bytes from 132.4.6.205:30087")
-                            self.log(f"   Raw: {data.hex()}")
+                            self.logger.debug(f"📨 TCP received {len(data)} bytes from 132.4.6.205:30087")
+                            self.logger.debug(f"   Raw: {data.hex()}")
                             
                             # Try to decode the message
                             try:
                                 decoded = self.decoder.decode_message(data)
                                 if decoded:
-                                    self.log(f"🎯 TCP DECODED: {decoded}")
+                                    self.logger.info(f"🎯 TCP DECODED: {decoded}")
                                     self.stats['tcp_messages'] += 1
                                     if 'TARGET' in str(decoded):
                                         self.stats['target_messages'] += 1
                                     
                                     # Check if this is a System Status message that needs acknowledgment
                                     if 'SYSTEM STATUS' in str(decoded):
-                                        self.log("📤 System Status received - sending Acknowledge per ICD...")
+                                        self.logger.info("📤 System Status received - sending Acknowledge per ICD...")
                                         self._send_acknowledge(sock)
                                         
                             except Exception as e:
-                                self.log(f"   ⚠️ Decode error: {e}")
+                                self.logger.error(f"   ⚠️ Decode error: {e}")
                                 
                         except socket.timeout:
                             continue
                         except Exception as e:
-                            self.log(f"TCP receive error: {e}")
+                            self.logger.error(f"TCP receive error: {e}")
                             break
                             
                     sock.close()
                     
                 except Exception as e:
-                    self.log(f"TCP connection error: {e}")
+                    self.logger.error(f"TCP connection error: {e}")
                     
                 if self.running:
-                    self.log("   ⏳ Retrying TCP in 10 seconds...")
+                    self.logger.info("   ⏳ Retrying TCP in 10 seconds...")
                     time.sleep(10)
                     
         thread = threading.Thread(target=tcp_handler, daemon=True)
@@ -234,9 +233,9 @@ class EltaEngineerSpecClient:
                 
                 # Bind to port 22230 as specified by engineer
                 sock.bind(('0.0.0.0', 22230))
-                self.log("✅ UDP listening on 0.0.0.0:22230")
-                self.log("   📋 ELTA Engineer Specification")
-                self.log("   🎯 Expecting data from simulator on port 30080")
+                self.logger.info("✅ UDP listening on 0.0.0.0:22230")
+                self.logger.info("   📋 ELTA Engineer Specification")
+                self.logger.info("   🎯 Expecting data from simulator on port 30080")
                 
                 # Start keep alive sender (required by ICD - every 1 second)
                 self._start_keep_alive_sender(sock)
@@ -244,34 +243,34 @@ class EltaEngineerSpecClient:
                 while self.running:
                     try:
                         data, addr = sock.recvfrom(4096)
-                        self.log(f"📨 UDP received {len(data)} bytes from {addr}")
-                        self.log(f"   Raw: {data.hex()}")
+                        self.logger.debug(f"📨 UDP received {len(data)} bytes from {addr}")
+                        self.logger.debug(f"   Raw: {data.hex()}")
                         
                         # Check if data is from expected simulator port 30080
                         if addr[1] == 30080:
-                            self.log("   ✅ Data from expected simulator port 30080!")
+                            self.logger.info("   ✅ Data from expected simulator port 30080!")
                         else:
-                            self.log(f"   ⚠️ Data from unexpected port {addr[1]} (expected 30080)")
+                            self.logger.warning(f"   ⚠️ Data from unexpected port {addr[1]} (expected 30080)")
                             
                         # Try to decode the message
                         try:
                             decoded = self.decoder.decode_message(data)
                             if decoded:
-                                self.log(f"🎯 UDP DECODED: {decoded}")
+                                self.logger.info(f"🎯 UDP DECODED: {decoded}")
                                 self.stats['udp_messages'] += 1
                                 if 'TARGET' in str(decoded):
                                     self.stats['target_messages'] += 1
                         except Exception as e:
-                            self.log(f"   ⚠️ Decode error: {e}")
+                            self.logger.error(f"   ⚠️ Decode error: {e}")
                             
                     except socket.timeout:
                         continue
                     except Exception as e:
-                        self.log(f"UDP receive error: {e}")
+                        self.logger.error(f"UDP receive error: {e}")
                         break
                         
             except Exception as e:
-                self.log(f"UDP setup error: {e}")
+                self.logger.error(f"UDP setup error: {e}")
                 
         thread = threading.Thread(target=udp_handler, daemon=True)
         thread.start()
@@ -307,7 +306,7 @@ class EltaEngineerSpecClient:
                 self.print_stats()
                 
         except KeyboardInterrupt:
-            self.log("🛑 Stopping...")
+            self.logger.info("🛑 Stopping...")
             self.running = False
             
             # Wait for threads to finish
@@ -315,7 +314,7 @@ class EltaEngineerSpecClient:
             udp_thread.join(timeout=2)
             
             self.print_stats()
-            self.log("✅ Stopped")
+            self.logger.info("✅ Stopped")
 
 if __name__ == "__main__":
     client = EltaEngineerSpecClient()
