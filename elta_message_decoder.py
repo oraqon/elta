@@ -106,7 +106,7 @@ class EltaMessageDecoder:
         if len(header_data) < 20:
             raise ValueError("Header too short")
             
-        # Unpack header fields (little-endian format)
+        # Unpack header fields (little-endian format) - CORRECTED per ICD Section 3.2
         msg_id, msg_length, time_tag, seq_num, source_id = struct.unpack('<IIIII', header_data)
         
         return {
@@ -527,20 +527,20 @@ def test_decoder():
     """Test the decoder with sample data"""
     decoder = EltaMessageDecoder()
     
-    # Sample Keep Alive message
-    keep_alive_data = struct.pack('<IIIII', 0x2135, 0xCEF00400, 20, 123456789, 1)
+    # Sample Keep Alive message - CORRECTED header format per ICD Section 3.2
+    keep_alive_data = struct.pack('<IIIII', 0xCEF00400, 20, 123456789, 1, 0x2135)
     print("=== KEEP ALIVE TEST ===")
     print(decoder.decode_message(keep_alive_data))
     
-    # Sample System Status message (corrected ID)
-    header = struct.pack('<IIIII', 0x2135, 0xCEF00402, 32, 123456789, 2)
+    # Sample System Status message - CORRECTED header format per ICD Section 3.2
+    header = struct.pack('<IIIII', 0xCEF00402, 32, 123456789, 2, 0x2135)
     payload = struct.pack('<IIII', 2, 1, 0, 250)  # Operational, Search mode, No error, 25.0°C
     status_data = header + payload
     print("\n=== SYSTEM STATUS TEST ===")
     print(decoder.decode_message(status_data))
     
-    # Sample Target Report message (corrected ID)
-    header = struct.pack('<IIIII', 0x2135, 0xCEF00403, 40, 123456789, 3)
+    # Sample Target Report message - CORRECTED header format per ICD Section 3.2
+    header = struct.pack('<IIIII', 0xCEF00403, 40, 123456789, 3, 0x2135)
     payload = struct.pack('<I', 1)  # 1 target
     target_data = struct.pack('<IIIIiiii', 1001, 5000000, 45000, 10000, 2500, -500, 1, 85)  # Sample target
     target_report_data = header + payload + target_data
