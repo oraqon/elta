@@ -44,7 +44,9 @@ class EltaEngineerSpecClient:
                 'log_level': 'DEBUG',
                 'log_file': None,
                 'tcp_connect_ip': '132.4.6.205',
-                'tcp_connect_port': 30087
+                'tcp_connect_port': 30087,
+                'udp_bind_port': 22230,
+                'udp_expected_sender_port': 30080
             }
             print(f"Warning: Could not load config.json, using defaults: {e}")
     
@@ -254,18 +256,22 @@ class EltaEngineerSpecClient:
         return thread
         
     def start_udp_client(self):
-        """Connect to port 22230 and receive data from simulator on port 30080"""
+        """Connect to UDP port and receive data from simulator"""
         def udp_handler():
+            # Read UDP config
+            udp_bind_port = self.config.get('udp_bind_port', 22230)
+            udp_expected_port = self.config.get('udp_expected_sender_port', 30080)
+            
             try:
                 # Create UDP socket
                 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
                 sock.settimeout(1.0)
                 
-                # Bind to port 22230 as specified by engineer
-                sock.bind(('0.0.0.0', 22230))
-                self.logger.info("✅ UDP listening on 0.0.0.0:22230")
+                # Bind to configured port
+                sock.bind(('0.0.0.0', udp_bind_port))
+                self.logger.info(f"✅ UDP listening on 0.0.0.0:{udp_bind_port}")
                 self.logger.info("   📋 ELTA Engineer Specification")
-                self.logger.info("   🎯 Expecting data from simulator on port 30080")
+                self.logger.info(f"   🎯 Expecting data from simulator on port {udp_expected_port}")
                 
                 # Start keep alive sender (required by ICD - every 1 second)
                 self._start_keep_alive_sender(sock)
@@ -276,11 +282,11 @@ class EltaEngineerSpecClient:
                         self.logger.debug(f"📨 UDP received {len(data)} bytes from {addr}")
                         self.logger.debug(f"   Raw: {data.hex()}")
                         
-                        # Check if data is from expected simulator port 30080
-                        if addr[1] == 30080:
-                            self.logger.info("   ✅ Data from expected simulator port 30080!")
+                        # Check if data is from expected simulator port
+                        if addr[1] == udp_expected_port:
+                            self.logger.info(f"   ✅ Data from expected simulator port {udp_expected_port}!")
                         else:
-                            self.logger.warning(f"   ⚠️ Data from unexpected port {addr[1]} (expected 30080)")
+                            self.logger.warning(f"   ⚠️ Data from unexpected port {addr[1]} (expected {udp_expected_port})")
                             
                         # Try to decode the message
                         try:
@@ -320,12 +326,14 @@ class EltaEngineerSpecClient:
         """Main execution loop"""
         tcp_ip = self.config.get('tcp_connect_ip', '132.4.6.205')
         tcp_port = self.config.get('tcp_connect_port', 30087)
+        udp_bind_port = self.config.get('udp_bind_port', 22230)
+        udp_expected_port = self.config.get('udp_expected_sender_port', 30080)
         
         self.logger.debug("🚀 ELTA ENGINEER SPECIFICATION CLIENT")
         self.logger.debug("=" * 60)
         self.logger.debug("📋 Based on ELTA Engineer Communication:")
         self.logger.debug(f"   🔌 TCP: Connect to {tcp_ip}:{tcp_port}")
-        self.logger.debug("   📡 UDP: Listen on port 22230 for data from simulator port 30080")
+        self.logger.debug(f"   📡 UDP: Listen on port {udp_bind_port} for data from simulator port {udp_expected_port}")
         self.logger.debug("=" * 60)
         
         # Start both clients

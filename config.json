@@ -2,5 +2,7 @@
   "log_level": "INFO",
   "log_file": "logs/elta_client.log",
   "tcp_connect_ip": "132.4.6.205",
-  "tcp_connect_port": 30087
+  "tcp_connect_port": 30087,
+  "udp_bind_port": 22230,
+  "udp_expected_sender_port": 30080
 }
