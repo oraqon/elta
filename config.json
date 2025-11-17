@@ -1,4 +1,4 @@
 {
   "log_level": "INFO",
-  "log_file": "elta_client.log"
+  "log_file": "logs/elta_client.log"
 }

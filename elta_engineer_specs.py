@@ -53,7 +53,7 @@ class EltaEngineerSpecClient:
         
         if log_file:
             # Log to file
-            file_handler = logging.FileHandler(log_file, mode='a', encoding='utf-8')
+            file_handler = logging.FileHandler(log_file, mode='w', encoding='utf-8')
             file_handler.setFormatter(logging.Formatter(
                 '[%(asctime)s.%(msecs)03d] %(message)s',
                 datefmt='%Y-%m-%d %H:%M:%S'
