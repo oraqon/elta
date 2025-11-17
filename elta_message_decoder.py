@@ -107,6 +107,8 @@ class EltaMessageDecoder:
                 return self._decode_target_report(header, payload)
             elif message_id == MessageType.SINGLE_TARGET_REPORT.value:
                 return self._decode_single_target(header, payload)
+            elif message_id == MessageType.SINGLE_TARGET_EXTENDED.value:
+                return self._decode_single_target_extended(header, payload)
             elif message_id == MessageType.SYSTEM_CONTROL.value:
                 return self._decode_system_control(header, payload)
             elif message_id == MessageType.SYSTEM_MOTION.value:
@@ -230,6 +232,251 @@ class EltaMessageDecoder:
             result += f"Insufficient payload data ({len(payload)} bytes)\n"
             result += f"Raw payload: {payload.hex().upper()}\n"
             
+        return result
+    
+    def _decode_single_target_extended(self, header, payload):
+        """Decode Single Target Extended message (0xCEF00414)
+        Message size: 528 bytes (20 byte header + 508 byte payload)
+        Payload: 332 bytes targetdata + 176 bytes plot data
+        """
+        result = self._format_header(header)
+        result += "\n" + "="*60 + "\n"
+        result += "MESSAGE TYPE: SINGLE TARGET EXTENDED\n"
+        result += "="*60 + "\n"
+        
+        if len(payload) < 508:
+            result += f"Insufficient payload data ({len(payload)} bytes, expected 508)\n"
+            result += f"Raw payload: {payload.hex().upper()}\n"
+            return result
+        
+        # Decode targetdata (332 bytes) per ICD Section 5.2.2
+        targetdata = payload[:332]
+        result += self._decode_targetdata(targetdata)
+        
+        # Decode plot data (176 bytes) per ICD Section 5.2.2.3
+        plot_data = payload[332:508]
+        result += "\n" + "="*60 + "\n"
+        result += "PLOT DATA\n"
+        result += "="*60 + "\n"
+        result += self._decode_plot_data(plot_data)
+        
+        return result
+    
+    def _decode_targetdata(self, data):
+        """Decode targetdata structure (332 bytes) per ICD Section 5.2.2"""
+        if len(data) < 332:
+            return f"Insufficient targetdata ({len(data)} bytes, expected 332)\n"
+        
+        result = ""
+        offset = 0
+        
+        # Field 1-2: targetId (4) + targetTimeTag (8)
+        target_id, target_time_tag = struct.unpack('<IQ', data[offset:offset+12])
+        offset += 12
+        result += f"Target ID:              {target_id}\n"
+        result += f"Target Time Tag:        {target_time_tag} ms (from midnight)\n"
+        
+        # Field 3: targetFirstUpdateTime (8)
+        first_update_time, = struct.unpack('<Q', data[offset:offset+8])
+        offset += 8
+        result += f"First Update Time:      {first_update_time} ms (from midnight)\n"
+        
+        # Field 4: targetSource (4)
+        target_source, = struct.unpack('<I', data[offset:offset+4])
+        offset += 4
+        result += f"Target Source:          {target_source}\n"
+        
+        # Field 5-6: fusionTargetSource[4] (16) + sourceTrack id[4] (16)
+        offset += 32  # Skip fusion fields (N/A per ICD)
+        
+        # Field 7: Target status (4)
+        target_status, = struct.unpack('<I', data[offset:offset+4])
+        offset += 4
+        status_map = {1: "New", 2: "Update", 3: "Delete", 4: "Extrapolate"}
+        result += f"Target Status:          {status_map.get(target_status, f'Unknown ({target_status})')}\n"
+        
+        # Field 8: score (4)
+        score, = struct.unpack('<f', data[offset:offset+4])
+        offset += 4
+        result += f"Score:                  {score:.2f}\n"
+        
+        # Field 9: targetClassification (4)
+        target_class, = struct.unpack('<I', data[offset:offset+4])
+        offset += 4
+        result += f"Target Classification:  {target_class}\n"
+        
+        # Field 10: ClassificationConfidence (4)
+        class_confidence, = struct.unpack('<f', data[offset:offset+4])
+        offset += 4
+        result += f"Classification Conf:    {class_confidence:.1f}%\n"
+        
+        # Field 11: seniority (4)
+        seniority, = struct.unpack('<I', data[offset:offset+4])
+        offset += 4
+        result += f"Seniority:              {seniority} updates\n"
+        
+        # Field 12: rcs (4)
+        rcs, = struct.unpack('<f', data[offset:offset+4])
+        offset += 4
+        result += f"RCS:                    {rcs:.2f} dBsm\n"
+        
+        # Field 13-15: Polar coordinates (8+8+8=24)
+        elevation, azimuth, range_m = struct.unpack('<ddd', data[offset:offset+24])
+        offset += 24
+        result += f"Elevation:              {math.degrees(elevation):.3f}° ({elevation:.6f} rad)\n"
+        result += f"Azimuth:                {math.degrees(azimuth):.3f}° ({azimuth:.6f} rad)\n"
+        result += f"Range:                  {range_m:.3f} m ({range_m/1000:.3f} km)\n"
+        
+        # Field 16-17: Velocity (4+4=8)
+        abs_vel, course = struct.unpack('<ff', data[offset:offset+8])
+        offset += 8
+        result += f"Absolute Velocity:      {abs_vel:.2f} m/s\n"
+        result += f"Course:                 {course:.3f} rad ({math.degrees(course):.1f}°)\n"
+        
+        # Field 18-20: Sigma values (8+8+8=24)
+        sigma_elevation, sigma_azimuth, sigma_range = struct.unpack('<ddd', data[offset:offset+24])
+        offset += 24
+        result += f"Sigma Elevation:        {math.degrees(sigma_elevation):.6f}° ({sigma_elevation:.6f} rad)\n"
+        result += f"Sigma Azimuth:          {math.degrees(sigma_azimuth):.6f}° ({sigma_azimuth:.6f} rad)\n"
+        result += f"Sigma Range:            {sigma_range:.3f} m\n"
+        
+        # Field 21-22: Number_of_dimention (4) + Coordinate_system (4)
+        num_dim, coord_sys = struct.unpack('<II', data[offset:offset+8])
+        offset += 8
+        dim_map = {1: "Radar_2D", 2: "Radar_3D", 3: "Optic_2D", 4: "Fusion_3D", 5: "HFL_2D"}
+        coord_map = {0: "SYSTEM_AXIS", 1: "WORLD_AXIS"}
+        result += f"Dimension:              {dim_map.get(num_dim, f'Unknown ({num_dim})')}\n"
+        result += f"Coordinate System:      {coord_map.get(coord_sys, f'Unknown ({coord_sys})')}\n"
+        
+        # Field 23-30: Availability flags (8 bytes)
+        flags = struct.unpack('<8B', data[offset:offset+8])
+        offset += 8
+        result += f"Cartesian Loc Avail:    {bool(flags[0])}\n"
+        result += f"Cartesian Vel Avail:    {bool(flags[1])}\n"
+        result += f"Polar Loc Avail:        {bool(flags[2])}\n"
+        result += f"Polar Vel Avail:        {bool(flags[3])}\n"
+        result += f"Geo Loc Avail:          {bool(flags[4])}\n"
+        result += f"Absolute Vel Avail:     {bool(flags[5])}\n"
+        result += f"Cartesian Var Avail:    {bool(flags[6])}\n"
+        
+        # Field 31-33: Geo location (8+8+8=24) - if available
+        altitude, latitude, longitude = struct.unpack('<ddd', data[offset:offset+24])
+        offset += 24
+        if flags[4]:  # geoLocationAvailable
+            result += f"Altitude:               {altitude:.3f} m\n"
+            result += f"Latitude:               {latitude:.7f}°\n"
+            result += f"Longitude:              {longitude:.7f}°\n"
+        
+        # Field 34-36: Cartesian location (8+8+8=24) - if available
+        target_x, target_y, target_z = struct.unpack('<ddd', data[offset:offset+24])
+        offset += 24
+        if flags[0]:  # cartesianLocationAvailable
+            result += f"Target X (NED):         {target_x:.3f} m\n"
+            result += f"Target Y (NED):         {target_y:.3f} m\n"
+            result += f"Target Z (NED):         {target_z:.3f} m\n"
+        
+        # Field 37-39: Cartesian velocity (8+8+8=24) - if available
+        vel_x, vel_y, vel_z = struct.unpack('<ddd', data[offset:offset+24])
+        offset += 24
+        if flags[1]:  # cartesianVelocityAvailable
+            result += f"Velocity X (NED):       {vel_x:.3f} m/s\n"
+            result += f"Velocity Y (NED):       {vel_y:.3f} m/s\n"
+            result += f"Velocity Z (NED):       {vel_z:.3f} m/s\n"
+        
+        # Field 40-42: Cartesian sigma (8+8+8=24)
+        sigma_x, sigma_y, sigma_z = struct.unpack('<ddd', data[offset:offset+24])
+        offset += 24
+        if flags[6]:  # cartesianVarianceAvailable
+            result += f"Sigma X:                {sigma_x:.3f} m\n"
+            result += f"Sigma Y:                {sigma_y:.3f} m\n"
+            result += f"Sigma Z:                {sigma_z:.3f} m\n"
+        
+        # Field 43-45: Cartesian velocity sigma (8+8+8=24)
+        sigma_vel_x, sigma_vel_y, sigma_vel_z = struct.unpack('<ddd', data[offset:offset+24])
+        offset += 24
+        if flags[6]:  # cartesianVarianceAvailable
+            result += f"Sigma Vel X:            {sigma_vel_x:.3f} m/s\n"
+            result += f"Sigma Vel Y:            {sigma_vel_y:.3f} m/s\n"
+            result += f"Sigma Vel Z:            {sigma_vel_z:.3f} m/s\n"
+        
+        # Field 46-48: Polar velocity (8+8+8=24)
+        vel_elevation, vel_azimuth, vel_range = struct.unpack('<ddd', data[offset:offset+24])
+        offset += 24
+        if flags[3]:  # polarVelocityAvailable
+            result += f"Velocity Elevation:     {math.degrees(vel_elevation):.3f}° ({vel_elevation:.6f} rad/s)\n"
+            result += f"Velocity Azimuth:       {math.degrees(vel_azimuth):.3f}° ({vel_azimuth:.6f} rad/s)\n"
+            result += f"Velocity Range:         {vel_range:.3f} m/s\n"
+        
+        # Field 49-51: Polar velocity variance (8+8+4=20)
+        var_vel_elev, var_vel_az, var_vel_range = struct.unpack('<ddf', data[offset:offset+20])
+        offset += 20
+        if flags[3]:  # polarVelocityAvailable
+            result += f"Var Vel Elevation:      {math.degrees(var_vel_elev):.6f}° ({var_vel_elev:.6f} rad/s)\n"
+            result += f"Var Vel Azimuth:        {math.degrees(var_vel_az):.6f}° ({var_vel_az:.6f} rad/s)\n"
+            result += f"Var Vel Range:          {var_vel_range:.3f} m/s\n"
+        
+        # Field 52: target_snr (4)
+        snr, = struct.unpack('<f', data[offset:offset+4])
+        offset += 4
+        result += f"SNR:                    {snr:.2f} dB\n"
+        
+        # Field 53: target_hpt (1)
+        hpt, = struct.unpack('<B', data[offset:offset+1])
+        offset += 1
+        hpt_map = {0: "NO", 1: "HPT", 2: "STT"}
+        result += f"HPT Status:             {hpt_map.get(hpt, f'Unknown ({hpt})')}\n"
+        
+        # Fields 54-57: Spare bytes (1+1+1+1+4=8)
+        # offset += 8  # Skip spare fields
+        
+        return result
+    
+    def _decode_plot_data(self, data):
+        """Decode plot data (176 bytes) per ICD Section 5.2.2.3"""
+        if len(data) < 176:
+            return f"Insufficient plot data ({len(data)} bytes, expected 176)\n"
+        
+        result = ""
+        offset = 0
+        
+        # Field 3: plot_time (8)
+        plot_time, = struct.unpack('<Q', data[offset:offset+8])
+        offset += 8
+        result += f"Plot Time:              {plot_time} ms (from midnight)\n"
+        
+        # Field 4: plot_id (4)
+        plot_id, = struct.unpack('<I', data[offset:offset+4])
+        offset += 4
+        result += f"Plot ID:                {plot_id}\n"
+        
+        # Field 5-6: plot_elevation (8) + plot_azimuth (8)
+        plot_elevation, plot_azimuth = struct.unpack('<dd', data[offset:offset+16])
+        offset += 16
+        result += f"Plot Elevation:         {math.degrees(plot_elevation):.3f}° ({plot_elevation:.6f} rad)\n"
+        result += f"Plot Azimuth:           {math.degrees(plot_azimuth):.3f}° ({plot_azimuth:.6f} rad)\n"
+        
+        # Field 7-9: plot_range (8) + plot_dopler (4) + plot_snr (4)
+        plot_range, plot_doppler, plot_snr = struct.unpack('<dff', data[offset:offset+16])
+        offset += 16
+        result += f"Plot Range:             {plot_range:.3f} m ({plot_range/1000:.3f} km)\n"
+        result += f"Plot Doppler:           {plot_doppler:.2f} m/s\n"
+        result += f"Plot SNR:               {plot_snr:.2f} dB\n"
+        
+        # Field 10-12: plot_sigma values (8+8+8=24)
+        plot_sigma_elev, plot_sigma_az, plot_sigma_range = struct.unpack('<ddd', data[offset:offset+24])
+        offset += 24
+        result += f"Plot Sigma Elevation:   {math.degrees(plot_sigma_elev):.6f}° ({plot_sigma_elev:.6f} rad)\n"
+        result += f"Plot Sigma Azimuth:     {math.degrees(plot_sigma_az):.6f}° ({plot_sigma_az:.6f} rad)\n"
+        result += f"Plot Sigma Range:       {plot_sigma_range:.3f} m\n"
+        
+        # Field 13: plot_sigma_dop (4)
+        plot_sigma_dop, = struct.unpack('<f', data[offset:offset+4])
+        offset += 4
+        result += f"Plot Sigma Doppler:     {plot_sigma_dop:.3f} m²\n"
+        
+        # Field 14: spare[16] (64 bytes)
+        # offset += 64  # Skip spare fields
+        
         return result
     
     def _decode_single_target_data(self, target_data, target_num):
