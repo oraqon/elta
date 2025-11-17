@@ -107,7 +107,7 @@ class EltaMessageDecoder:
             raise ValueError("Header too short")
             
         # Unpack header fields (little-endian format)
-        source_id, msg_id, msg_length, time_tag, seq_num = struct.unpack('<IIIII', header_data)
+        msg_id, msg_length, time_tag, seq_num, source_id = struct.unpack('<IIIII', header_data)
         
         return {
             'source_id': source_id,
