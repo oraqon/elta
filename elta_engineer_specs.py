@@ -26,6 +26,8 @@ class EltaEngineerSpecClient:
         
         self.decoder = EltaMessageDecoder()
         self.running = True
+        self.tcp_socket = None  # Store TCP socket reference for clean shutdown
+        self.standby_ack_received = threading.Event()  # Event to wait for STANDBY acknowledgment
         self.stats = {
             'tcp_connections': 0,
             'tcp_messages': 0,
@@ -131,6 +133,53 @@ class EltaEngineerSpecClient:
         except Exception as e:
             self.logger.error(f"   ❌ Error sending System Control message: {e}")
     
+    def _send_system_control_standby(self, sock):
+        """Send System Control message to command radar to STANDBY state"""
+        try:
+            # Build System Control message per ICD specification
+            # Message ID: 0xCEF00401 (System Control)
+            # Per ICD: RDR_STATE = 2 (STANDBY) - corrected from 1
+            
+            # Header: source_id, message_id, message_length, time_tag, sequence_number
+            import time
+            current_time_ms = int((time.time() % 86400) * 1000)  # ms from midnight
+            
+            # CORRECTED: Header field order per ICD Section 3.2
+            header = struct.pack('<IIIII', 
+                               0xCEF00401,      # message_id (System Control) - FIRST
+                               60,              # message_length (20 byte header + 40 byte payload) - SECOND
+                               current_time_ms, # time_tag (MS from midnight) - THIRD
+                               99,              # sequence_number (use different seq for standby) - FOURTH  
+                               0x12345678)      # source_id (C2 system ID) - FIFTH
+            
+            # Payload: System Control fields per ICD Section 5.1.1
+            payload = struct.pack('<I', 2)  # RDR_STATE = 2 (STANDBY) - CORRECTED
+            payload += struct.pack('<I', 0)  # Mission Category = 0
+            
+            # HFL Sensor controls (4 bytes, all disabled for now)
+            payload += struct.pack('<BBBB', 1, 1, 1, 1)  # HFL_Sensor1-4_control = disabled
+            
+            # Radar controls (4 bytes, all enabled)
+            payload += struct.pack('<BBBB', 0, 0, 0, 0)  # Radar1-4_control = enabled
+            
+            # Freq Index and spare fields
+            payload += struct.pack('<I', 1)  # Freq Index = 1
+            payload += struct.pack('<IIIII', 0, 0, 0, 0, 0)  # 5 spare fields
+            
+            message = header + payload
+            
+            self.logger.info(f"📤 Sending System Control message to command radar to STANDBY state...")
+            self.logger.debug(f"   📋 System Control Message Details:")
+            self.logger.debug(f"      Command: STANDBY (state=2)")
+            self.logger.debug(f"      Message Length: {len(message)} bytes")
+            self.logger.debug(f"      Raw hex: {message.hex().upper()}")
+            
+            sock.send(message)
+            self.logger.info("   ✅ System Control STANDBY message sent successfully!")
+            
+        except Exception as e:
+            self.logger.error(f"   ❌ Error sending System Control STANDBY message: {e}")
+    
     def _start_keep_alive_sender(self, udp_sock):
         """Start Keep Alive message sender (required every 1 second per ICD)"""
         def keep_alive_sender():
@@ -200,6 +249,9 @@ class EltaEngineerSpecClient:
                     sock.settimeout(15.0)
                     sock.connect((tcp_ip, tcp_port))
                     
+                    # Store socket reference for clean shutdown
+                    self.tcp_socket = sock
+                    
                     self.logger.info(f"✅ TCP CONNECTED to {tcp_ip}:{tcp_port}!")
                     self.stats['tcp_connections'] += 1
                     
@@ -228,8 +280,14 @@ class EltaEngineerSpecClient:
                                     if 'TARGET' in str(decoded):
                                         self.stats['target_messages'] += 1
                                     
-                                    # Check if this is a System Status message that needs acknowledgment
+                                    # Check if this is a System Status message
                                     if 'SYSTEM STATUS' in str(decoded):
+                                        # Check if radar entered STANDBY state
+                                        if 'System State:      Standby' in str(decoded):
+                                            self.logger.info("   ✅ Radar confirmed STANDBY state!")
+                                            self.standby_ack_received.set()
+                                        
+                                        # Send acknowledgment per ICD
                                         self.logger.info("📤 System Status received - sending Acknowledge per ICD...")
                                         self._send_acknowledge(sock)
                                         
@@ -242,6 +300,8 @@ class EltaEngineerSpecClient:
                             self.logger.error(f"TCP receive error: {e}")
                             break
                             
+                    # Clear socket reference before closing
+                    self.tcp_socket = None
                     sock.close()
                     
                 except Exception as e:
@@ -349,6 +409,21 @@ class EltaEngineerSpecClient:
         except KeyboardInterrupt:
             self.logger.info("🛑 Stopping...")
             self.running = False
+            
+            # Send STANDBY command before disconnecting
+            if self.tcp_socket:
+                try:
+                    self._send_system_control_standby(self.tcp_socket)
+                    
+                    # Wait for STANDBY acknowledgment from radar (max 5 seconds)
+                    self.logger.info("⏳ Waiting for radar to confirm STANDBY state...")
+                    if self.standby_ack_received.wait(timeout=5.0):
+                        self.logger.info("   ✅ Radar successfully entered STANDBY state!")
+                    else:
+                        self.logger.warning("   ⚠️ Timeout waiting for STANDBY confirmation (radar may still be transitioning)")
+                        
+                except Exception as e:
+                    self.logger.error(f"Error during shutdown: {e}")
             
             # Wait for threads to finish
             tcp_thread.join(timeout=2)
